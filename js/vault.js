@@ -155,12 +155,10 @@ async function boot(){
   if(!ctx) return;
   const { s, user } = ctx;
 
-  // Define o "kind" pelo arquivo atual (vip.html/final.html) ou pela UI do member
-  const path = (location.pathname||"").toLowerCase();
-  const isVipPage   = path.endsWith("/vip.html") || path.endsWith("vip.html");
-  const isFinalPage = path.endsWith("/final.html") || path.endsWith("final.html");
-  const isVaultPage = isVipPage || isFinalPage;
-  const kind = isVipPage ? "vip" : (isFinalPage ? "final" : "vip");
+  // ✅ Este script é para páginas de cofre (vip.html / final.html).
+  // No member.html, ele NÃO deve interferir (evita duplo render/bugs com member.js).
+  const kind = String(window.__VAULT_KIND__ || "").toLowerCase();
+  if(kind !== "vip" && kind !== "final") return;
 
   $("backMember")?.addEventListener("click", (e)=>{ e.preventDefault(); CS.go("./member.html"); }, {passive:false});
 
@@ -168,12 +166,6 @@ async function boot(){
   const order = await getLatestApprovedOrderForKind(s, user, kind);
   if(!order){
     await CS.log("vault_denied", { kind });
-    // No member.html: não atrapalha a tela, só mantém o card escondido
-    if(!isVaultPage && $("providersCard")){
-      $("providersCard").style.display = "none";
-      $("countChip") && ($("countChip").textContent = "0");
-      return;
-    }
     CS.showPopup({
       title:"Acesso bloqueado",
       msg:"Seu acesso ainda não foi aprovado. Finalize o pagamento e aguarde a liberação.",
@@ -185,14 +177,7 @@ async function boot(){
     return;
   }
 
-  // Se estiver no member.html, mostra fornecedores (VIP)
-  if($("providersGrid")){
-    $("listKindChip") && ($("listKindChip").textContent = "VIP");
-    await loadProviders();
-    return;
-  }
-
-  // Se estiver no vault (vip/final), carrega links
+  // Carrega links do cofre
   if($("vaultList")){
     await loadLinks(kind);
     return;

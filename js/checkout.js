@@ -1,286 +1,228 @@
 (() => {
-"use strict";
+  "use strict";
 
-async function loadCatalog(){
-  try{
-    const r = await fetch("./products.json",{cache:"no-store"});
-    if(!r.ok) return [];
-    const d = await r.json();
-    return Array.isArray(d) ? d : [];
-  }catch{
-    return [];
-  }
-}
+  // checkout.js — exibe produto, coleta dados e cria pedido no Supabase.
 
-function setText(id, txt){
-  const el = document.getElementById(id);
-  if(el) el.textContent = txt;
-}
+  function $(id){ return document.getElementById(id); }
 
-function setImg(src){
-  const img = document.getElementById("pimg");
-  if(!img) return;
-  img.src = src || "./img/placeholder.svg";
-  img.onerror = () => (img.src="./img/placeholder.svg");
-}
-
-function priceToCents(p){
-  if(p==null) return 0;
-  if(p.price_cents!=null) return Number(p.price_cents)||0;
-  return Math.round(Number(p.price||0)*100);
-}
-
-async function insertOrder(product, buyer){
-  const s = CS.client();
-  const u = await CS.user();
-
-  const payload = {
-    product_id: String(product.id||""),
-    product_name: String(product.name||""),
-    amount_cents: priceToCents(product),
-    currency: "BRL",
-    buyer_name: buyer.name || null,
-    buyer_email: buyer.email || null,
-    buyer_phone: buyer.phone || null,
-    payment_status: "PENDENTE",
-    order_status: "CRIADO",
-    status: "created",
-    provider: "manual",
-    user_id: u?.id || null
-  };
-
-  const {data, error} = await s
-    .from("cs_orders")
-    .insert(payload)
-    .select("id, payment_status, order_status")
-    .single();
-
-  if(error) throw error;
-  try{ localStorage.setItem("cs_last_order_id", String(data?.id||"")); }catch{}
-  return data;
-}
-
-async function latestOrder(product_id){
-  const s = CS.client();
-  const u = await CS.user();
-  if(!u?.id) return null;
-
-  const {data, error} = await s
-    .from("cs_orders")
-    .select("id, created_at, payment_status, order_status, status")
-    .eq("user_id", u.id)
-    .eq("product_id", String(product_id||""))
-    .order("created_at",{ascending:false})
-    .limit(1);
-
-  if(error) return null;
-  return data?.[0] || null;
-}
-
-function accessTarget(pid){
-  const x = String(pid||"").toLowerCase();
-  if(x==="vip" || x==="lojista") return "vip.html";
-  if(x==="final") return "final.html";
-  return "member.html";
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
-  // popup curto avisando sobre pagamentos
-  try{
-    CS.showPopup({
-      title:"Formas de pagamento",
-      msg:"Jajá teremos novas formas de pagamento. Por enquanto, finalize normalmente e fale com o suporte se precisar.",
-      actions:[
-        {label:"Suporte", primary:true, href:(window.APP_CONFIG?.SUPPORT_WA||""), target:"_blank"},
-        {label:"Ok"}
-      ]
-    });
-    setTimeout(()=>{
-      document.getElementById("csPopBack")?.classList.remove("on");
-      document.getElementById("csPop")?.classList.remove("on");
-    }, 2000);
-  }catch{}
-
-  const pid = (CS.qs("id")||"").trim();
-  const catalog = await loadCatalog();
-  const product = catalog.find(x=>String(x.id||"")===pid) || catalog[0] || null;
-
-  if(!product){
-    setText("name","Produto não encontrado");
-    setText("desc","Volta e escolha um produto.");
-    setText("price","—");
-    return;
+  function setText(id, txt){
+    const el = $(id);
+    if(el) el.textContent = txt;
   }
 
-  setText("name", product.name || "Produto");
-  setText("desc", product.short || product.desc || "");
-  setImg(product.image);
+  function setImg(src){
+    const img = $("pimg");
+    if(!img) return;
+    img.src = src || "./img/placeholder.svg";
+    img.onerror = () => { img.src = "./img/placeholder.svg"; };
+  }
 
-  const cents = priceToCents(product);
-  setText("price", CS.moneyFromCents(cents));
+  function priceToCents(p){
+    if(!p) return 0;
+    if(p.price_cents != null) return Number(p.price_cents) || 0;
+    return Math.round(Number(p.price || 0) * 100);
+  }
 
-  const pixKey = document.getElementById("pixKey");
-  if(pixKey) pixKey.value = (window.APP_CONFIG?.PIX_KEY || "");
-
-  const copyBtn = document.getElementById("copyPix");
-  if(copyBtn) copyBtn.addEventListener("click", async ()=>{
+  async function loadCatalog(){
     try{
-      await navigator.clipboard.writeText(pixKey?.value||"");
-      CS.toast("Copiado ✅");
+      const r = await fetch("./products.json", { cache:"no-store" });
+      if(!r.ok) return [];
+      const d = await r.json();
+      return Array.isArray(d) ? d : [];
     }catch{
-      CS.toast("Não consegui copiar", false);
+      return [];
     }
-  }, {passive:false});
+  }
 
-  const confirmBtn = document.getElementById("confirmBtn");
-  const goPayBtn  = document.getElementById("goPay");
-  const payRow    = document.getElementById("payRow");
-  const cardBtn   = document.getElementById("cardBtn");
+  function isApproved(order){
+    const st = String(order?.order_status || order?.status || "").toLowerCase();
+    return st === "aprovado" || st === "approved" || /aprovado|approved/.test(st);
+  }
 
-  
-  // Ir para pagamento (abre pagamento.html)
-  function saveCheckoutDraft(){
+  function accessTarget(pid){
+    const x = String(pid || "").toLowerCase();
+    if(x === "final") return "final.html";
+    // VIP / Lojista / CSS -> VIP
+    if(x === "vip" || x === "lojista" || x === "css-importados") return "vip.html";
+    return "member.html";
+  }
+
+  async function latestOrderForProduct(productId){
+    try{
+      const s = CS.client();
+      const u = await CS.user();
+      if(!u?.id) return null;
+
+      const { data, error } = await s
+        .from("cs_orders")
+        .select("id, created_at, payment_status, order_status, status")
+        .eq("user_id", u.id)
+        .eq("product_id", String(productId || ""))
+        .order("created_at", { ascending:false })
+        .limit(1);
+
+      if(error) return null;
+      return data?.[0] || null;
+    }catch{
+      return null;
+    }
+  }
+
+  async function insertOrder(product, buyer){
+    const s = CS.client();
+    const u = await CS.user().catch(() => null);
+
+    const payload = {
+      product_id: String(product?.id || ""),
+      product_name: String(product?.name || ""),
+      amount_cents: priceToCents(product),
+      currency: "BRL",
+      buyer_name: buyer?.name || null,
+      buyer_email: buyer?.email || null,
+      buyer_phone: buyer?.phone || null,
+      payment_status: "PENDENTE",
+      order_status: "CRIADO",
+      status: "pending",
+      provider: "manual",
+      user_id: u?.id || null
+    };
+
+    const { data, error } = await s
+      .from("cs_orders")
+      .insert(payload)
+      .select("id, payment_status, order_status")
+      .single();
+
+    if(error) throw error;
+
+    try{ localStorage.setItem("cs_last_order_id", String(data?.id || "")); }catch{}
+    try{ CS.log("order_created", { product_id: payload.product_id, order_id: data?.id }).catch(() => {}); }catch{}
+    return data;
+  }
+
+  function saveDraft({ product, buyer, order_id }){
     const draft = {
       product: {
-        id: String(p?.id ?? pid ?? ""),
-        name: String(p?.name ?? "Produto"),
-        price: Number(p?.price ?? 0),
+        id: String(product?.id || ""),
+        name: String(product?.name || "Produto"),
+        price: Number(product?.price || 0),
         currency: "BRL",
-        cover: String(p?.cover ?? "")
+        cover: String(product?.image || product?.cover || "")
       },
       buyer: {
-        name: ($name?.value || "").trim(),
-        email: ($email?.value || "").trim(),
-        phone: ($phone?.value || "").trim()
+        name: String(buyer?.name || ""),
+        email: String(buyer?.email || ""),
+        phone: String(buyer?.phone || "")
       },
+      order_id: order_id ? String(order_id) : "",
       ts: Date.now()
     };
     try{ localStorage.setItem("cs_checkout_draft", JSON.stringify(draft)); }catch{}
     return draft;
   }
 
-  if(goPayBtn){
-    goPayBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+  document.addEventListener("DOMContentLoaded", async () => {
+    const loader = $("loader");
+    if(loader) setTimeout(() => loader.classList.add("off"), 250);
 
-      const buyer_name  = ($name?.value || "").trim();
-      const buyer_email = ($email?.value || "").trim();
-      const buyer_phone = ($phone?.value || "").trim();
+    const pid = (CS.qs("id") || "").trim();
+    const catalog = await loadCatalog();
+    const product = catalog.find(x => String(x.id || "") === pid) || catalog[0] || null;
 
-      if(!buyer_name || !buyer_email){
-        toast("Preenche nome e e-mail pra continuar.");
-        return;
-      }
-
-      // salva rascunho e abre a página premium de pagamento
-      const d = saveCheckoutDraft();
-      const u = new URL("pagamento.html", window.location.href);
-      u.searchParams.set("pid", d.product.id);
-      u.searchParams.set("name", buyer_name);
-      u.searchParams.set("email", buyer_email);
-      if(buyer_phone) u.searchParams.set("phone", buyer_phone);
-      window.location.href = u.toString();
-    }, { passive:false });
-  }
-
-      if(payRow){
-        payRow.style.display = ""; // remove o display:none inline
-        try{ payRow.scrollIntoView({ behavior:"smooth", block:"start" }); }
-        catch{ payRow.scrollIntoView(); }
-      }
-    }, { passive:false });
-  }
-
-  // Cartão: abre WhatsApp do suporte com mensagem pronta
-  if(cardBtn){
-    cardBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const buyer_name  = (nameInput?.value || "").trim();
-      const buyer_email = (emailInput?.value || "").trim();
-      const buyer_phone = (phoneInput?.value || "").trim();
-
-      if(!CS?.CONFIG?.SUPPORT_WA){
-        showMsg("WhatsApp de suporte não configurado (config.js).");
-        return;
-      }
-
-      const txt =
-        `Olá! Quero pagar no cartão (InfinitePay/link).\n` +
-        `Produto: ${product?.name || product?.id || ""}\n` +
-        `Nome: ${buyer_name}\n` +
-        `Email: ${buyer_email}\n` +
-        (buyer_phone ? `Telefone: ${buyer_phone}\n` : "") +
-        `Site: ${location.href}`;
-
-      const url = CS.CONFIG.SUPPORT_WA + "?text=" + encodeURIComponent(txt);
-      window.open(url, "_blank");
-    }, { passive:false });
-  }
-
-  const payChip = document.getElementById("payChip");
-  const accessBox = document.getElementById("accessBox");
-  const accessBtn = document.getElementById("accessBtn");
-  const accessHint = document.getElementById("accessHint");
-
-  async function refresh(){
-    const ord = await latestOrder(product.id);
-    if(!ord) return;
-
-    const st = String(ord.order_status || ord.status || "").toLowerCase();
-    const approved = (st==="aprovado" || st==="approved");
-
-    if(payChip){
-      payChip.className = approved ? "chip ok" : "chip warn";
-      payChip.textContent = approved ? "aprovado" : "pendente";
-    }
-    if(accessBox) accessBox.style.display = "block";
-    if(accessHint) accessHint.textContent = approved ? "Aprovado. Clique e acesse." : "Pedido pendente. Aguarde aprovação.";
-    if(accessBtn){
-      accessBtn.disabled = !approved;
-      accessBtn.className = approved ? "btn" : "btn2";
-      accessBtn.textContent = approved ? "Acessar agora" : "Aguardando";
-      if(approved) accessBtn.onclick = () => CS.go(accessTarget(product.id));
-    }
-  }
-
-  if(confirmBtn) confirmBtn.addEventListener("click", async ()=>{
-    const u = await CS.user();
-    if(!u){
-      CS.toast("Faça login para continuar.", false);
-      CS.go("member.html#login");
+    if(!product){
+      setText("name", "Produto não encontrado");
+      setText("desc", "Volta e escolha um produto.");
+      setText("price", "—");
       return;
     }
 
-    const buyerName  = (document.getElementById("buyerName")?.value||"").trim();
-    const buyerEmail = (document.getElementById("buyerEmail")?.value||"").trim();
-    const buyerPhone = (document.getElementById("buyerPhone")?.value||"").trim();
+    setText("name", product.name || "Produto");
+    setText("desc", product.short || product.desc || "");
+    setImg(product.image);
 
-    if(!buyerName || !buyerEmail){
-      CS.toast("Preenche nome e e-mail", false);
-      return;
+    const cents = priceToCents(product);
+    setText("price", CS.moneyFromCents(cents));
+
+    const payChip    = $("payChip");
+    const accessBox  = $("accessBox");
+    const accessBtn  = $("accessBtn");
+    const accessHint = $("accessHint");
+
+    async function refresh(){
+      const ord = await latestOrderForProduct(product.id);
+      if(!ord) return;
+
+      const approved = isApproved(ord);
+
+      if(payChip){
+        payChip.className = approved ? "chip ok" : "chip warn";
+        payChip.textContent = approved ? "aprovado" : "pendente";
+      }
+
+      if(accessBox) accessBox.style.display = "block";
+      if(accessHint) accessHint.textContent = approved ? "Aprovado. Clique e acesse." : "Pedido pendente. Aguarde aprovação.";
+
+      if(accessBtn){
+        accessBtn.disabled = !approved;
+        accessBtn.className = approved ? "btn" : "btn2";
+        accessBtn.textContent = approved ? "Acessar agora" : "Aguardando";
+        accessBtn.onclick = approved ? () => CS.go(accessTarget(product.id)) : null;
+      }
     }
 
-    try{
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = "Enviando…";
-      await insertOrder(product, {name:buyerName, email:buyerEmail, phone:buyerPhone});
-      CS.toast("Pedido criado ✅");
-      await CS.log("order_created", {product_id:product.id});
-      setTimeout(refresh, 800);
-    }catch(e){
-      console.warn(e);
-      CS.toast("Falhou ao criar pedido", false);
-      await CS.log("order_create_error", {message:String(e?.message||e)});
-    }finally{
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = "Já paguei";
-    }
-  }, {passive:false});
+    // Ir para pagamento: cria pedido + salva draft + abre pagamento.html
+    const goPayBtn = $("goPay");
+    if(goPayBtn){
+      goPayBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
 
-  setInterval(refresh, 4500);
-  setTimeout(refresh, 800);
-});
+        const buyer = {
+          name:  String($("buyerName")?.value || "").trim(),
+          email: String($("buyerEmail")?.value || "").trim(),
+          phone: String($("buyerPhone")?.value || "").trim()
+        };
+
+        if(!buyer.name || !buyer.email){
+          CS.toast("Preenche nome e e-mail pra continuar.", false);
+          return;
+        }
+
+        if(!CS.canDo("checkout_goPay", 3)){
+          CS.toast("Aguarde um instante…", false);
+          return;
+        }
+
+        goPayBtn.disabled = true;
+        const oldLabel = goPayBtn.textContent;
+        goPayBtn.textContent = "Criando pedido…";
+
+        try{
+          const created = await insertOrder(product, buyer);
+          const draft = saveDraft({ product, buyer, order_id: created?.id });
+
+          const u = new URL("pagamento.html", window.location.href);
+          u.searchParams.set("pid", draft.product.id);
+          u.searchParams.set("name", draft.buyer.name);
+          u.searchParams.set("email", draft.buyer.email);
+          if(draft.buyer.phone) u.searchParams.set("phone", draft.buyer.phone);
+          if(draft.order_id) u.searchParams.set("oid", draft.order_id);
+
+          window.location.href = u.toString();
+        }catch(err){
+          console.warn("[checkout] insertOrder", err);
+          CS.toast("Erro ao criar pedido. Tenta de novo.", false);
+          try{ CS.log("order_create_error", { message: String(err?.message || err) }).catch(() => {}); }catch{}
+        }finally{
+          goPayBtn.disabled = false;
+          goPayBtn.textContent = oldLabel;
+        }
+      }, { passive:false });
+    }
+
+    // status do pedido (se o usuário estiver logado)
+    refresh();
+    setTimeout(refresh, 800);
+    setInterval(refresh, 4500);
+  });
 })();

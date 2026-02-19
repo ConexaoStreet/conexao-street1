@@ -6,6 +6,15 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 function safeText(el, txt){ if(el) el.textContent = txt; }
 
+function escHtml(v){
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function getDeviceId(){
   try{
     const k="cs_device_id";
@@ -39,7 +48,7 @@ function setLoggedUI(user){
 function badge(txt, ok){
   const t = String(txt||"").trim();
   const cls = ok ? "badge ok" : "badge warn";
-  return `<span class="${cls}">${t}</span>`;
+  return `<span class="${cls}">${escHtml(t)}</span>`;
 }
 
 function isApproved(order){
@@ -84,24 +93,51 @@ function renderProviders(items){
     return;
   }
 
+  const frag = document.createDocumentFragment();
   items.forEach(p => {
     const it = document.createElement("div");
     it.className = "provItem";
-    const img = p.image ? `<img class="pimg" src="${p.image}" alt="">`
-              : `<div class="pimg" style="background:rgba(255,255,255,.04)"></div>`;
-    const name = p.name || "Fornecedor";
-    const cat = p.category || "";
-    const url = p.url || "#";
-    it.innerHTML = `
-      ${img}
-      <div class="pbody">
-        <div class="ptitle">${name}</div>
-        <div class="psub">${cat}</div>
-        <a class="pbtn" href="${url}" target="_blank" rel="noopener noreferrer">Abrir</a>
-      </div>
-    `;
-    grid.appendChild(it);
+
+    let imgEl;
+    if(p.image){
+      imgEl = document.createElement("img");
+      imgEl.className = "pimg";
+      imgEl.alt = "";
+      imgEl.src = String(p.image);
+      imgEl.onerror = () => { imgEl.src = "./img/placeholder.svg"; };
+    }else{
+      imgEl = document.createElement("div");
+      imgEl.className = "pimg";
+      imgEl.style.background = "rgba(255,255,255,.04)";
+    }
+
+    const body = document.createElement("div");
+    body.className = "pbody";
+
+    const title = document.createElement("div");
+    title.className = "ptitle";
+    title.textContent = String(p.name || "Fornecedor");
+
+    const sub = document.createElement("div");
+    sub.className = "psub";
+    sub.textContent = String(p.category || "");
+
+    const a = document.createElement("a");
+    a.className = "pbtn";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = "Abrir";
+    a.href = String(p.url || "#");
+
+    body.appendChild(title);
+    body.appendChild(sub);
+    body.appendChild(a);
+
+    it.appendChild(imgEl);
+    it.appendChild(body);
+    frag.appendChild(it);
   });
+  grid.appendChild(frag);
 
   card.style.display = "block";
   try{ card.scrollIntoView({behavior:"smooth", block:"start"}); }catch{}
@@ -223,10 +259,10 @@ async function loadMyOrders(s, user){
       : `<button class="btn2" type="button" disabled>Aguardando</button>`;
 
     row.innerHTML = `
-      <b>#${o.id}</b> — ${pname}<br/>
-      <small class="sub" style="max-width:none">${new Date(o.created_at).toLocaleString("pt-BR")}</small>
+      <b>#${escHtml(o.id)}</b> — ${escHtml(pname)}<br/>
+      <small class="sub" style="max-width:none">${escHtml(new Date(o.created_at).toLocaleString("pt-BR"))}</small>
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-        ${bPay} ${bOrd} <span class="badge">${val}</span>
+        ${bPay} ${bOrd} <span class="badge">${escHtml(val)}</span>
       </div>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         ${btn}

@@ -1,4 +1,4 @@
-// js/pagamento.js — página premium de pagamento (Pix Nubank + WhatsApp)
+// js/pagamento.js — pagamento (Pix) + marcação "Já paguei"
 (() => {
   "use strict";
 
@@ -10,7 +10,6 @@
   }
 
   function getDraft(){
-    // prioridade: localStorage (vem do checkout)
     try{
       const raw = localStorage.getItem("cs_checkout_draft");
       if(raw) return JSON.parse(raw);
@@ -18,18 +17,17 @@
     return null;
   }
 
-  function getQuery(name){
+  function qs(name){
     try{ return new URL(window.location.href).searchParams.get(name); }
     catch{ return null; }
   }
 
   function buildSupportLink(extraMsg){
-    const wa = (window.APP_CONFIG?.SUPPORT_WA || "").trim();
+    const wa = String(window.APP_CONFIG?.SUPPORT_WA || "").trim();
     if(!wa) return "#";
-    // se já é wa.me com número, monta mensagem
     try{
       const u = new URL(wa);
-      const msg = (extraMsg || "").trim();
+      const msg = String(extraMsg || "").trim();
       if(msg) u.searchParams.set("text", msg);
       return u.toString();
     }catch{
@@ -42,7 +40,6 @@
       await navigator.clipboard.writeText(t);
       return true;
     }catch{
-      // fallback
       const ta = document.createElement("textarea");
       ta.value = t;
       document.body.appendChild(ta);
@@ -54,14 +51,53 @@
     }
   }
 
-  function fill(){
+  function getFallbackDraft(){
+    return {
+      product: {
+        id: qs("pid") || "",
+        name: "Produto",
+        price: 0,
+        currency: "BRL",
+        cover: ""
+      },
+      buyer: {
+        name: qs("name") || "",
+        email: qs("email") || "",
+        phone: qs("phone") || ""
+      },
+      order_id: qs("oid") || ""
+    };
+  }
+
+  async function markPaid(orderId){
+    if(!orderId) return false;
+    try{
+      const s = CS.client();
+      const u = await CS.user().catch(() => null);
+
+      // Se o usuário estiver deslogado, não conseguimos atualizar no backend.
+      if(!u?.id) return false;
+
+      const patch = {
+        payment_status: "PAGO",
+        paid_at: new Date().toISOString(),
+        status: "pending",
+        order_status: "CRIADO"
+      };
+
+      const { error } = await s.from("cs_orders").update(patch).eq("id", orderId);
+      if(error) return false;
+
+      try{ CS.log("order_paid", { order_id: orderId }).catch(() => {}); }catch{}
+      return true;
+    }catch{
+      return false;
+    }
+  }
+
+  function fillUI(draft){
     const loader = $("loader");
     if (loader) setTimeout(() => loader.classList.add("off"), 250);
-
-    const draft = getDraft() || {
-      product: { id: getQuery("pid") || "", name:"Produto", price:0, currency:"BRL", cover:"" },
-      buyer: { name: getQuery("name") || "", email: getQuery("email") || "", phone: getQuery("phone") || "" }
-    };
 
     const p = draft.product || {};
     const b = draft.buyer || {};
@@ -84,9 +120,10 @@
     const cover = $("pCover");
     if(cover && p.cover){
       cover.src = p.cover;
+      cover.onerror = () => { cover.src = "./img/placeholder.jpg"; };
     }
 
-    const pixKey = (window.APP_CONFIG?.PIX_KEY || "").trim();
+    const pixKey = String(window.APP_CONFIG?.PIX_KEY || "").trim();
     $("pixKey") && ($("pixKey").textContent = pixKey || "—");
 
     const msgBase =
@@ -95,11 +132,8 @@
       (b.phone ? `Telefone: ${b.phone}\n` : "") +
       `Obs: estou na página de pagamento.`;
 
-    const waCard = buildSupportLink(msgBase + "\nPagamento no cartão (crédito/débito).");
-    const waSupport = buildSupportLink("Oi! Preciso de ajuda com o pagamento.");
-
-    $("btnCardWA") && ($("btnCardWA").href = waCard);
-    $("btnSupportWA") && ($("btnSupportWA").href = waSupport);
+    $("btnCardWA") && ($("btnCardWA").href = buildSupportLink(msgBase + "\nPagamento no cartão (crédito/débito)."));
+    $("btnSupportWA") && ($("btnSupportWA").href = buildSupportLink("Oi! Preciso de ajuda com o pagamento."));
 
     const btnCopy = $("btnCopyPix");
     if(btnCopy){
@@ -117,18 +151,26 @@
 
     const btnPaid = $("btnJaPaguei");
     if(btnPaid){
-      btnPaid.addEventListener("click", () => {
-        // marca um estado local simples (backend vem depois)
+      btnPaid.addEventListener("click", async () => {
+        btnPaid.disabled = true;
+        const orderId = String(draft.order_id || qs("oid") || "").trim();
+        const ok = await markPaid(orderId);
+
+        // estado local (pra UX)
         try{
           localStorage.setItem("cs_last_payment", JSON.stringify({ ...draft, status:"PENDENTE", ts: Date.now() }));
         }catch{}
+
         // manda pra área do membro
+        if(ok) CS.toast("Pedido marcado como pago ✅");
+        else CS.toast("Ok! Agora aguarde a aprovação ✅");
         window.location.href = new URL("member.html", window.location.href).toString();
       }, { passive:false });
     }
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    fill();
+    const draft = getDraft() || getFallbackDraft();
+    fillUI(draft);
   });
 })();
