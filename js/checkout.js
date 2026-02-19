@@ -152,10 +152,6 @@ const payload = {
     setText("price", CS.moneyFromCents(cents));
 
     const payChip    = $("payChip");
-    const accessBox  = $("accessBox");
-    const accessBtn  = $("accessBtn");
-    const accessHint = $("accessHint");
-
     async function refresh(){
       const ord = await latestOrderForProduct(product.id);
       if(!ord) return;
@@ -166,16 +162,7 @@ const payload = {
         payChip.className = approved ? "chip ok" : "chip warn";
         payChip.textContent = approved ? "aprovado" : "pendente";
       }
-
-      if(accessBox) accessBox.style.display = "block";
-      if(accessHint) accessHint.textContent = approved ? "Aprovado. Clique e acesse." : "Pedido pendente. Aguarde aprovação.";
-
-      if(accessBtn){
-        accessBtn.disabled = !approved;
-        accessBtn.className = approved ? "btn" : "btn2";
-        accessBtn.textContent = approved ? "Acessar agora" : "Aguardando";
-        accessBtn.onclick = approved ? () => CS.go(accessTarget(product.id)) : null;
-      }
+    }
     }
 
     // Ir para pagamento: cria pedido + salva draft + abre pagamento.html

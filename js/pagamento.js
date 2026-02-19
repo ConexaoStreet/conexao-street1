@@ -1,184 +1,149 @@
-// js/pagamento.js — pagamento (Pix) + marcação "Já paguei"
+// js/pagamento.js — confirma pagamento (manual) e manda o usuário ver o acesso na Área do Membro
 (() => {
   "use strict";
 
-  function $(id){ return document.getElementById(id); }
+  const $ = (id) => document.getElementById(id);
 
-  function moneyBRL(v){
-    try{ return Number(v).toLocaleString("pt-BR", { style:"currency", currency:"BRL" }); }
-    catch{ return `R$ ${v}`; }
+  function getOID(){
+    const u = new URL(window.location.href);
+    const q = u.searchParams.get("oid") || u.searchParams.get("id");
+    if(q) return q;
+    try{ return localStorage.getItem("cs_last_order_id"); }catch{ return null; }
   }
 
-  function getDraft(){
-    try{
-      const raw = localStorage.getItem("cs_checkout_draft");
-      if(raw) return JSON.parse(raw);
-    }catch{}
-    return null;
+  function fmtMoneyBRL(v){
+    const n = Number(v);
+    if(Number.isNaN(n)) return "";
+    try{ return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+    catch{ return `R$ ${n}`; }
   }
 
-  function qs(name){
-    try{ return new URL(window.location.href).searchParams.get(name); }
-    catch{ return null; }
+  function setText(id, v){
+    const el = $(id);
+    if(!el) return;
+    el.textContent = v == null ? "" : String(v);
   }
 
-  function buildSupportLink(extraMsg){
-    const wa = String(window.APP_CONFIG?.SUPPORT_WA || "").trim();
-    if(!wa) return "#";
-    try{
-      const u = new URL(wa);
-      const msg = String(extraMsg || "").trim();
-      if(msg) u.searchParams.set("text", msg);
-      return u.toString();
-    }catch{
-      return wa;
+  function setStatus(msg, tone){
+    const el = $("statusMsg");
+    if(!el) return;
+    el.textContent = msg || "";
+    // tone: "ok" | "warn" | "err"
+    el.dataset.tone = tone || "";
+  }
+
+  async function mustLogged(){
+    const u = await CS.user().catch(() => null);
+    if(!u?.id){
+      try{ localStorage.setItem("cs_after_login", window.location.href); }catch{}
+      CS.toast("Você precisa entrar para confirmar pagamento.");
+      CS.go("member.html#login");
+      return null;
     }
+    return u;
   }
 
-  async function copyText(t){
-    try{
-      await navigator.clipboard.writeText(t);
-      return true;
-    }catch{
-      const ta = document.createElement("textarea");
-      ta.value = t;
-      document.body.appendChild(ta);
-      ta.select();
-      let ok = false;
-      try{ ok = document.execCommand("copy"); }catch{}
-      ta.remove();
-      return ok;
-    }
+  async function loadOrder(oid, uid){
+    const client = CS.client();
+    const { data, error } = await client
+      .from("cs_orders")
+      .select("id, created_at, product_id, product_name, amount, amount_cents, currency, buyer_name, buyer_email, buyer_phone, payment_status, order_status")
+      .eq("id", oid)
+      .eq("user_id", uid)
+      .maybeSingle();
+
+    if(error) throw error;
+    return data || null;
   }
 
-  function getFallbackDraft(){
-    return {
-      product: {
-        id: qs("pid") || "",
-        name: "Produto",
-        price: 0,
-        currency: "BRL",
-        cover: ""
-      },
-      buyer: {
-        name: qs("name") || "",
-        email: qs("email") || "",
-        phone: qs("phone") || ""
-      },
-      order_id: qs("oid") || ""
-    };
-  }
+  async function markPaid(oid, uid){
+    const client = CS.client();
+    const now = new Date().toISOString();
 
-  async function markPaid(orderId){
-    if(!orderId) return false;
-    try{
-      const s = CS.client();
-      const u = await CS.user().catch(() => null);
-
-            // login obrigatório: sem sessão não conseguimos atualizar o pedido
-      if(!u?.id){
-        CS.toast("Entre na sua conta para confirmar o pagamento.");
-        try{ localStorage.setItem("cs_after_login", window.location.href); }catch{}
-        CS.go("member.html");
-        return false;
-      }
-
-// Se o usuário estiver deslogado, não conseguimos atualizar no backend.
-      if(!u?.id) return false;
-
-      const patch = {
+    const { error } = await client
+      .from("cs_orders")
+      .update({
         payment_status: "PAGO",
-        paid_at: new Date().toISOString(),
-        status: "pending",
-        order_status: "CRIADO"
-      };
+        paid_at: now,
+        order_status: "PENDENTE"
+      })
+      .eq("id", oid)
+      .eq("user_id", uid);
 
-      const { error } = await s.from("cs_orders").update(patch).eq("id", orderId);
-      if(error) return false;
-
-      try{ CS.log("order_paid", { order_id: orderId }).catch(() => {}); }catch{}
-      return true;
-    }catch{
-      return false;
-    }
+    if(error) throw error;
   }
 
-  function fillUI(draft){
-    const loader = $("loader");
-    if (loader) setTimeout(() => loader.classList.add("off"), 250);
+  document.addEventListener("DOMContentLoaded", async () => {
+    const oid = getOID();
+    const btn = $("btnJaPaguei");
 
-    const p = draft.product || {};
-    const b = draft.buyer || {};
+    if(!oid){
+      setStatus("Pedido não encontrado. Volte e gere um novo pedido.", "err");
+      if(btn) btn.disabled = true;
+      return;
+    }
 
-    $("pName") && ($("pName").textContent = p.name || "Produto");
-    $("pPrice") && ($("pPrice").textContent = moneyBRL(p.price || 0));
-    $("buyerNameOut") && ($("buyerNameOut").textContent = b.name || "—");
-    $("buyerEmailOut") && ($("buyerEmailOut").textContent = b.email || "—");
+    try{
+      const u = await mustLogged();
+      if(!u) return;
 
-    const phoneOut = $("buyerPhoneOut");
-    if(phoneOut){
-      if(b.phone){
-        phoneOut.style.display = "";
-        phoneOut.textContent = b.phone;
-      }else{
-        phoneOut.style.display = "none";
+      setText("orderId", String(oid).slice(0, 8));
+      setStatus("Carregando pedido...", "");
+
+      const order = await loadOrder(oid, u.id);
+
+      if(!order){
+        setStatus("Pedido não encontrado (ou não pertence a esta conta).", "err");
+        if(btn) btn.disabled = true;
+        return;
       }
+
+      // Produto
+      setText("pName", order.product_name || order.product_id || "Produto");
+      setText("pDesc", "Confirme o Pix e aguarde a aprovação para liberar o acesso.");
+      const amount = order.amount_cents != null
+        ? fmtMoneyBRL(Number(order.amount_cents) / 100)
+        : (order.amount != null ? fmtMoneyBRL(order.amount) : "");
+      setText("pPrice", amount || "");
+
+      // Status chips/text
+      setText("payStatusChip", String(order.payment_status || "PENDENTE").toLowerCase());
+      setText("payStatus", order.payment_status || "PENDENTE");
+
+      // Dados do comprador
+      setText("buyerNameOut", order.buyer_name || u.user_metadata?.name || "");
+      setText("buyerEmailOut", order.buyer_email || u.email || "");
+      setText("buyerPhoneOut", order.buyer_phone || u.user_metadata?.phone || "");
+
+      setStatus("Faça o Pix e depois clique em “Já paguei”. Seu pedido fica em análise até aprovação.", "warn");
+
+      if(btn){
+        btn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          btn.disabled = true;
+          setStatus("Confirmando pagamento...", "");
+
+          try{
+            await markPaid(oid, u.id);
+            setText("payStatusChip", "pago");
+            setText("payStatus", "PAGO");
+
+            setStatus("Pagamento marcado como PAGO ✅ Agora aguarde a aprovação. Seu acesso aparecerá em “Seus acessos” na Área do Membro.", "ok");
+
+            setTimeout(() => CS.go("member.html"), 900);
+          }catch(err){
+            console.error("[pagamento] markPaid error:", err);
+            btn.disabled = false;
+            setStatus("Erro ao confirmar pagamento. Tente novamente.", "err");
+          }
+        }, { passive:false });
+      }
+    }catch(err){
+      console.error("[pagamento] fatal:", err);
+      setStatus("Erro ao preparar pagamento. Tente novamente.", "err");
+      if(btn) btn.disabled = true;
     }
-
-    const cover = $("pCover");
-    if(cover && p.cover){
-      cover.src = p.cover;
-      cover.onerror = () => { cover.src = "./img/placeholder.jpg"; };
-    }
-
-    const pixKey = String(window.APP_CONFIG?.PIX_KEY || "").trim();
-    $("pixKey") && ($("pixKey").textContent = pixKey || "—");
-
-    const msgBase =
-      `Oi! Quero pagar no cartão o produto: ${p.name || p.id || "Conexão Street"}\n` +
-      `Nome: ${b.name || "-"}\nEmail: ${b.email || "-"}\n` +
-      (b.phone ? `Telefone: ${b.phone}\n` : "") +
-      `Obs: estou na página de pagamento.`;
-
-    $("btnCardWA") && ($("btnCardWA").href = buildSupportLink(msgBase + "\nPagamento no cartão (crédito/débito)."));
-    $("btnSupportWA") && ($("btnSupportWA").href = buildSupportLink("Oi! Preciso de ajuda com o pagamento."));
-
-    const btnCopy = $("btnCopyPix");
-    if(btnCopy){
-      btnCopy.addEventListener("click", async () => {
-        if(!pixKey) return;
-        btnCopy.disabled = true;
-        const ok = await copyText(pixKey);
-        btnCopy.textContent = ok ? "Copiado ✅" : "Não deu pra copiar";
-        setTimeout(() => {
-          btnCopy.textContent = "Copiar chave Pix";
-          btnCopy.disabled = false;
-        }, 1200);
-      }, { passive:false });
-    }
-
-    const btnPaid = $("btnJaPaguei");
-    if(btnPaid){
-      btnPaid.addEventListener("click", async () => {
-        btnPaid.disabled = true;
-        const orderId = String(draft.order_id || qs("oid") || "").trim();
-        const ok = await markPaid(orderId);
-
-        // estado local (pra UX)
-        try{
-          localStorage.setItem("cs_last_payment", JSON.stringify({ ...draft, status:"PENDENTE", ts: Date.now() }));
-        }catch{}
-
-        // manda pra área do membro
-        if(ok) CS.toast("Pedido marcado como pago ✅");
-        else CS.toast("Ok! Agora aguarde a aprovação ✅");
-        window.location.href = new URL("member.html", window.location.href).toString();
-      }, { passive:false });
-    }
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const draft = getDraft() || getFallbackDraft();
-    fillUI(draft);
   });
 })();
