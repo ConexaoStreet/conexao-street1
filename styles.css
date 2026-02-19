@@ -83,7 +83,7 @@ button,input,select{font:inherit}
 .provItem .pbody{padding:12px 12px 14px;}
 .provItem .ptitle{font-weight:800;font-size:14px;line-height:1.2;}
 .provItem .psub{margin-top:6px;color:var(--muted);font-size:12px;}
-.provItem .pbtn{margin-top:10px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-radius:14px;background:rgba(122,43,255,.22);border:1px solid rgba(122,43,255,.45);}
+.provItem .pbtn{margin-top:10px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-radius:14px;background:#FFFFFF;border:1px solid rgba(255,255,255,.85);color:#07070A;}
 
 
 .adminMiniWrap{ position:relative; }
@@ -281,3 +281,8 @@ button,input,select{font:inherit}
 .vaultSub{font-size:12px;color:rgba(255,255,255,.70);margin-top:2px}
 .vaultMeta{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.70)}
 .vaultLine{height:1px;background:rgba(255,255,255,.08)}
+
+
+/* Comprar branco (premium) */
+.btn.buyWhite{ background:#FFFFFF; color:#07070A; border:1px solid rgba(255,255,255,.85); }
+.btn.buyWhite:hover{ filter:brightness(.96); }

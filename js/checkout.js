@@ -137,19 +137,52 @@ document.addEventListener("DOMContentLoaded", async () => {
   const payRow    = document.getElementById("payRow");
   const cardBtn   = document.getElementById("cardBtn");
 
-  // Mostra a área de pagamento (PIX/WhatsApp) só depois de preencher os dados
+  
+  // Ir para pagamento (abre pagamento.html)
+  function saveCheckoutDraft(){
+    const draft = {
+      product: {
+        id: String(p?.id ?? pid ?? ""),
+        name: String(p?.name ?? "Produto"),
+        price: Number(p?.price ?? 0),
+        currency: "BRL",
+        cover: String(p?.cover ?? "")
+      },
+      buyer: {
+        name: ($name?.value || "").trim(),
+        email: ($email?.value || "").trim(),
+        phone: ($phone?.value || "").trim()
+      },
+      ts: Date.now()
+    };
+    try{ localStorage.setItem("cs_checkout_draft", JSON.stringify(draft)); }catch{}
+    return draft;
+  }
+
   if(goPayBtn){
     goPayBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
 
-      const buyer_name  = (nameInput?.value || "").trim();
-      const buyer_email = (emailInput?.value || "").trim();
+      const buyer_name  = ($name?.value || "").trim();
+      const buyer_email = ($email?.value || "").trim();
+      const buyer_phone = ($phone?.value || "").trim();
 
       if(!buyer_name || !buyer_email){
-        showMsg("Preenche nome e e-mail.");
+        toast("Preenche nome e e-mail pra continuar.");
         return;
       }
+
+      // salva rascunho e abre a página premium de pagamento
+      const d = saveCheckoutDraft();
+      const u = new URL("pagamento.html", window.location.href);
+      u.searchParams.set("pid", d.product.id);
+      u.searchParams.set("name", buyer_name);
+      u.searchParams.set("email", buyer_email);
+      if(buyer_phone) u.searchParams.set("phone", buyer_phone);
+      window.location.href = u.toString();
+    }, { passive:false });
+  }
 
       if(payRow){
         payRow.style.display = ""; // remove o display:none inline

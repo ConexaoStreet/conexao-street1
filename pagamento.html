@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pagamento • Conexão Street</title>
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#07070A" />
+  <style>
+    .payGrid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      .payGrid{ grid-template-columns: 1fr; }
+    }
+    .payHero{
+      position:relative;
+      overflow:hidden;
+    }
+    .payHero:before{
+      content:"";
+      position:absolute; inset:-40px;
+      background: radial-gradient(circle at 20% 20%, rgba(122,43,255,.25), transparent 55%),
+                  radial-gradient(circle at 80% 30%, rgba(184,140,255,.18), transparent 55%),
+                  radial-gradient(circle at 40% 90%, rgba(122,43,255,.18), transparent 60%);
+      filter: blur(10px);
+      pointer-events:none;
+    }
+    .payHero > *{ position:relative; }
+    .copyRow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .codeBox{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.25;
+      word-break: break-all;
+      padding: 12px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.10);
+      color: rgba(255,255,255,.92);
+    }
+    .qrBox{
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.03);
+      padding: 14px;
+      text-align:center;
+    }
+    .qrImg{
+      width: 220px; height: 220px;
+      border-radius: 16px;
+      object-fit: cover;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      display:inline-block;
+    }
+    .small{ color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+
+<body>
+
+  <div class="loaderWrap" id="loader" aria-hidden="true">
+    <div class="loaderCard">
+      <div class="shine"></div>
+      <div class="loaderInner">
+        <div class="spinner"></div>
+        <div class="loaderTxt">
+          <b>Carregando</b>
+          <small>Preparando o pagamento…</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <header class="top">
+    <div class="wrap">
+      <div class="bar">
+        <a class="brand" href="index.html" aria-label="Voltar para a home">
+          <span class="logoBox">
+            <img src="./img/logo.png" alt="Logo" onerror="this.style.display='none'" />
+          </span>
+          <span>
+            <b>Conexão Street</b><br />
+            <small>Pagamento</small>
+          </span>
+        </a>
+
+        <div class="right">
+          <a class="pill" href="products.html">Produtos</a>
+          <a class="pill" href="member.html">Área do membro</a>
+          <a class="pill" href="index.html#sec-suporte">Suporte ↗</a>
+          <button class="avatarBtn" id="avatarBtn" aria-label="Menu">
+            <img src="./img/avatar.png" alt="" onerror="this.style.display='none'"/>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" style="padding-top:14px; padding-bottom:26px;">
+    <div class="hero payHero">
+      <div class="hwrap">
+        <span class="tag"><i></i> Pagamento premium</span>
+        <h1>Finalize pelo Pix (Nubank)</h1>
+        <div class="sub">Depois do botão <b>“Já paguei”</b>, seu pedido fica <b>pendente</b> até aprovação. Seu acesso aparece na <b>Área do Membro</b>.</div>
+      </div>
+    </div>
+
+    <div class="payGrid" style="margin-top:14px;">
+      <section class="card">
+        <div class="cardHd">
+          <b>Resumo</b>
+          <span class="chip" id="payStatus">pendente</span>
+        </div>
+
+        <div class="productRow" style="margin-top:10px;">
+          <div class="pcover">
+            <img id="pCover" src="./img/placeholder.jpg" alt="" class="pimg" onerror="this.style.display='none'"/>
+          </div>
+          <div class="pinfo">
+            <b id="pName">Produto</b>
+            <div class="muted" id="pDesc">Acesso digital</div>
+            <div class="priceRow">
+              <span class="chip">Pix</span>
+              <span class="chip" id="pPrice">R$ 0,00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sectionTitle" style="margin-top:14px;">
+          <b>Seus dados</b>
+          <span class="chip">confira</span>
+        </div>
+        <div class="muted" style="margin-top:6px;">Use o mesmo e-mail do pagamento.</div>
+
+        <div class="form" style="margin-top:10px;">
+          <div class="pill" id="buyerNameOut"></div>
+          <div class="pill" id="buyerEmailOut"></div>
+          <div class="pill" id="buyerPhoneOut" style="display:none;"></div>
+        </div>
+
+        <div class="sectionTitle" style="margin-top:14px;">
+          <b>Chave Pix</b>
+          <span class="chip">copie</span>
+        </div>
+        <div class="small" style="margin-top:6px;">Caso precise digitar manualmente no app.</div>
+        <div class="codeBox" id="pixKey" style="margin-top:10px;"></div>
+
+        <div class="copyRow">
+          <button class="btn buyWhite" id="btnCopyPix" type="button">Copiar chave Pix</button>
+          <button class="btn primary" id="btnJaPaguei" type="button">Já paguei</button>
+        </div>
+
+        <div class="sectionTitle" style="margin-top:14px;">
+          <b>Cartão (WhatsApp)</b>
+          <span class="chip">indisponível</span>
+        </div>
+        <div class="small" style="margin-top:6px;">Crédito/Débito: por enquanto o suporte finaliza com você (InfinitePay / link).</div>
+        <div class="copyRow">
+          <a class="btn" id="btnCardWA" href="#" target="_blank" rel="noopener">Pagar no cartão (WhatsApp)</a>
+          <a class="btn" id="btnSupportWA" href="#" target="_blank" rel="noopener">Suporte no WhatsApp</a>
+        </div>
+
+        <div class="footer" style="border-top:none; padding-top:16px;">
+          Ao comprar, você concorda com nossa Política. Não fazemos estornos/reembolsos de acesso digital.
+        </div>
+      </section>
+
+      <aside class="card">
+        <div class="cardHd">
+          <b>QR Code</b>
+          <span class="chip">em breve</span>
+        </div>
+        <div class="qrBox" style="margin-top:10px;">
+          <img class="qrImg" src="./img/placeholder.jpg" alt="QR code" />
+          <div class="small" style="margin-top:10px;">
+            QR automático depende de integração bancária.<br/>
+            Por enquanto, use a <b>chave Pix</b> acima.
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div class="menuOverlay" id="menuOverlay" aria-hidden="true">
+    <div class="menuCard">
+      <div class="menuList">
+        <div class="mi" id="miMember"><b>Área do Membro</b><small>Entrar / Acessar</small></div>
+        <div class="mi" id="miAdminP"><b>Painel Admin (P)</b><small>Pagamentos</small></div>
+        <div class="mi" id="miAdmin"><b>Painel Admin</b><small>Dashboard</small></div>
+        <div class="mi" id="miLogout"><b>Sair</b><small>Voltar pra Home</small></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/pagamento.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
