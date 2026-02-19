@@ -1,0 +1,91 @@
+<!doctype html><html lang="pt-br"><head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#7A2BFF">
+  <link rel="icon" href="./img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#07070A" />
+  <link rel="stylesheet" href="./styles.css" />
+<title>Conexão Street • VIP</title>
+<meta name="description" content="Conexão Street — curadoria e acesso liberado após aprovação.">
+</head><body>
+<div class="bg"></div><div class="noise"></div>
+<div class="loader" id="loader" aria-hidden="true"><div style="display:flex;align-items:center;gap:12px"><div class="spin"></div><div><b>Carregando</b><br/><span class="sub" style="max-width:none;font-size:12px">Conexão Street</span></div></div></div>
+
+  <div class="top">
+    <div class="wrap">
+      <div class="bar">
+        <a class="brand" href="./index.html" aria-label="Home">
+          <div class="logoBox"><img src="./img/logo.svg" alt="Logo" /></div>
+          <div>
+            <b>Conexão Street</b><br/>
+            <small>Home</small>
+          </div>
+        </a>
+        <div class="pills">
+          <a class="pill muted" href="./products.html">Fornecedores</a>
+          <a class="pill muted" href="./produtos.html">Produtos</a>
+                    <a class="pill muted" id="adminPill" href="./admin.html" style="display:none">Admin</a>
+<a class="pill muted" href="./member.html">Área do membro</a>
+          <a class="pill" href="https://wa.me/5511919730067" target="_blank" rel="noopener">Suporte ↗</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<main class="wrap" style="padding-top:18px">
+  <div class="heroRow">
+    <div class="card"><div class="cardInner">
+      <span class="kicker"><span class="dot"></span> Acesso sob aprovação</span>
+      <div class="h1">Bem-vindo a Conexão Street.</div>
+      <div class="sub">A melhor loja de Fornecedores do Brasil 👾</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn" id="goProducts" type="button" style="width:auto">Ver fornecedores</button>
+        <button class="btn2" id="goMember" type="button" style="width:auto">Entrar</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <a class="pill" href="https://www.instagram.com/con.exaostreet01?igsh=c3c2OG5vcW83NWow" target="_blank" rel="noopener">Instagram ↗</a>
+        <a class="pill" href="https://www.tiktok.com/@conexo.street.for?_r=1&_t=ZS-93wqqtKMDfr" target="_blank" rel="noopener">TikTok ↗</a>
+      </div>
+    </div></div>
+    <div class="heroArt" aria-hidden="true"></div>
+  </div>
+
+  <section class="section">
+    <div class="grid2">
+      <div class="card"><div class="cardInner">
+        <div class="sectionTitle"><b>Como funciona</b><span class="chip">rápido</span></div>
+        <div class="row"><div class="sub" style="max-width:none">1) Escolhe → 2) Paga → 3) “Já paguei” → 4) Admin aprova → 5) Acessa.</div></div>
+        <div class="row">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+            <div><b style="font-size:14px">Suporte (WhatsApp)</b><div class="sub" style="font-size:12px">Mesmo número do PIX.</div></div>
+            <a class="btn2" href="https://wa.me/5511919730067" target="_blank" rel="noopener" style="width:auto">Chamar</a>
+          </div>
+        </div>
+      </div></div>
+
+      <div class="card"><div class="cardInner">
+        <div class="sectionTitle"><b>Segurança</b><span class="chip ok">ativa</span></div>
+        <div class="sub" style="max-width:none">Login + trava por dispositivo. Conteúdo só aparece após aprovação.</div>
+        <div style="height:10px"></div>
+        <button class="btn2" id="goSecurity" type="button" style="width:auto">Ver detalhes</button>
+        <div id="securityBox" class="row" style="display:none">
+          <ul class="list">
+            <li>1 login por dispositivo</li>
+            <li>Conteúdo secreto não fica público</li>
+            <li>Admin controla aprovações</li>
+          </ul>
+        </div>
+      </div></div>
+    </div>
+  </section>
+
+  <div class="footer">© 2026 Conexão Street • GitHub Pages ready</div>
+</main>
+
+<div class="toast" id="toast"></div>
+<script src="./config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/ui.js"></script>
+<script src="./js/index.js"></script>
+</body></html>
