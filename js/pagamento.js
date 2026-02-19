@@ -75,7 +75,15 @@
       const s = CS.client();
       const u = await CS.user().catch(() => null);
 
-      // Se o usuário estiver deslogado, não conseguimos atualizar no backend.
+            // login obrigatório: sem sessão não conseguimos atualizar o pedido
+      if(!u?.id){
+        CS.toast("Entre na sua conta para confirmar o pagamento.");
+        try{ localStorage.setItem("cs_after_login", window.location.href); }catch{}
+        CS.go("member.html");
+        return false;
+      }
+
+// Se o usuário estiver deslogado, não conseguimos atualizar no backend.
       if(!u?.id) return false;
 
       const patch = {

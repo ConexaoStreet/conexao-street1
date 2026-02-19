@@ -72,7 +72,15 @@
     const s = CS.client();
     const u = await CS.user().catch(() => null);
 
-    const payload = {
+        // login obrigatório: com RLS, precisamos de sessão ativa para inserir
+    if(!u?.id){
+      CS.toast("Você precisa entrar na sua conta para comprar.");
+      try{ localStorage.setItem("cs_after_login", window.location.href); }catch{}
+      CS.go("member.html");
+      throw new Error("NOT_LOGGED_IN");
+    }
+
+const payload = {
       product_id: String(product?.id || ""),
       product_name: String(product?.name || ""),
       amount_cents: priceToCents(product),
@@ -84,7 +92,7 @@
       order_status: "CRIADO",
       status: "pending",
       provider: "manual",
-      user_id: u?.id || null
+      user_id: u.id
     };
 
     const { data, error } = await s

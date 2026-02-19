@@ -352,6 +352,17 @@ async function init(){
 
     setLoggedUI(data.user);
     const ok = await enforceDevice(s, data.user);
+
+    // se veio do checkout/pagamento, volta automaticamente após login
+    try{
+      const after = localStorage.getItem("cs_after_login");
+      if(after){
+        localStorage.removeItem("cs_after_login");
+        window.location.href = new URL(after, window.location.href).toString();
+        return;
+      }
+    }catch{}
+
     if(ok){
       await loadInfo();
       await loadMyOrders(s, data.user);
