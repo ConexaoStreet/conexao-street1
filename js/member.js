@@ -190,13 +190,32 @@ async function enforceDevice(s, user){
   }
 }
 
-async function loadInfo(){
-  // Placeholder: se você tiver info adicional, preenche aqui.
-  safeText($("infoChip"), "ok");
+async function loadInfo(s, user, deviceId){
   const box = $("infoBox");
-  if(box){
-    box.innerHTML = `<div class="sub" style="max-width:none">Conta vinculada ao dispositivo atual. Seus pedidos aparecem acima.</div>`;
+  const chip = $("infoChip");
+  if(!box) return;
+
+  const u = user || (await s.auth.getUser().then(r => r?.data?.user).catch(() => null));
+  if(!u){
+    box.innerHTML = `<div class="muted">Entre na sua conta para ver suas informações.</div>`;
+    chip && (chip.textContent = "—");
+    return;
   }
+
+  const created = u.created_at ? new Date(u.created_at).toLocaleString("pt-BR") : "—";
+  const last = (u.last_sign_in_at || u.last_sign_in) ? new Date(u.last_sign_in_at || u.last_sign_in).toLocaleString("pt-BR") : "—";
+  const prov = (u.app_metadata && u.app_metadata.provider) ? String(u.app_metadata.provider) : "—";
+
+  box.innerHTML = `
+    <div><b>Email:</b> <span class="muted">${escHtml(u.email || "—")}</span></div>
+    <div style="margin-top:8px;"><b>User ID:</b> <span class="muted" style="word-break:break-all">${escHtml(u.id || "—")}</span></div>
+    <div style="margin-top:8px;"><b>Cadastro:</b> <span class="muted">${escHtml(created)}</span></div>
+    <div style="margin-top:8px;"><b>Último login:</b> <span class="muted">${escHtml(last)}</span></div>
+    <div style="margin-top:8px;"><b>Provider:</b> <span class="muted">${escHtml(prov)}</span></div>
+    <div style="margin-top:8px;"><b>Dispositivo:</b> <span class="muted" style="word-break:break-all">${escHtml(deviceId || "—")}</span></div>
+    <div class="muted" style="margin-top:12px;">O acesso aparece em <b>Seus acessos</b> quando o pedido estiver <b>APROVADO</b>.</div>
+  `;
+  chip && (chip.textContent = "ok");
 }
 
 async function loadMyOrders(s, user){
@@ -204,6 +223,26 @@ async function loadMyOrders(s, user){
   if(!list) return;
 
   list.innerHTML = "";
+
+// Card de acesso (somente quando houver pedido APROVADO)
+try{
+  const firstApproved = (data || []).find(o => String(o?.order_status||"").toUpperCase() === "APROVADO");
+  if(firstApproved){
+    const url = await CS.getAccessUrl(s, firstApproved);
+    if(url){
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.marginBottom = "12px";
+      card.innerHTML = `
+        <div class="h">Acesso</div>
+        <div class="muted" style="margin-top:6px;">Aprovado. Clique e acesse.</div>
+        <a class="btn primary" style="margin-top:10px; text-align:center;" href="${url}">Acessar agora</a>
+      `;
+      list.appendChild(card);
+    }
+  }
+}catch(e){ /* noop */ }
+
 
   if(!user){
     safeText($("statusChip"), "faça login");
@@ -289,8 +328,8 @@ async function init(){
     s.auth.onAuthStateChange(async (_event, session) => {
       const user = session?.user || null;
       setLoggedUI(user);
-      await loadInfo();
-      await loadMyOrders(s, user);
+      await loadInfo(s, user, deviceId);
+await loadMyOrders(s, user);
     });
   }catch{}
 
@@ -309,9 +348,8 @@ async function init(){
   }
 
   setLoggedUI(user);
-  await loadInfo();
-
-  // retry de sessão (storage delay)
+  await loadInfo(s, user, deviceId);
+// retry de sessão (storage delay)
   if(!user){
     setTimeout(async ()=>{
       try{
@@ -319,7 +357,7 @@ async function init(){
         const u2 = sess2?.data?.session?.user || null;
         if(u2){
           setLoggedUI(u2);
-          await loadInfo();
+          await loadInfo(s, u2, deviceId);
           await loadMyOrders(s, u2);
         }
       }catch{}
@@ -335,12 +373,38 @@ async function init(){
 
   $("goShop")?.addEventListener("click", ()=>location.href="./products.html");
 
-  $("btnLogout")?.addEventListener("click", async ()=>{
-    await s.auth.signOut();
+  $("btnLogout")?.addEventListener("click", async (e)=>{
+    try{ e.preventDefault(); e.stopPropagation(); }catch{}
+    try{
+      await s.auth.signOut();
+    }catch(err){
+      console.warn("[logout] signOut falhou:", err);
+    }
+
+    // hard clean (evita “sessão fantasma” por storage/caches)
+    try{
+      Object.keys(localStorage || {}).forEach((k) => {
+        if(String(k).startsWith("sb-") && String(k).endsWith("-auth-token")){
+          localStorage.removeItem(k);
+        }
+      });
+      localStorage.removeItem("cs_after_login");
+    }catch{}
+
     setLoggedUI(null);
     safeText($("statusChip"), "faça login");
     const pc = $("providersCard"); if(pc) pc.style.display="none";
+    const oc = $("ordersCard"); if(oc) oc.style.display="none";
+    const list = $("ordersList"); if(list) list.innerHTML = "";
+    const info = $("infoBox"); if(info) info.innerHTML = `<div class="muted">Você saiu da conta.</div>`;
+    safeText($("infoChip"), "—");
+
+    // volta pro login (e recarrega pra limpar qualquer state)
+    setTimeout(() => {
+      try{ CS.go("member.html#login"); }catch{ window.location.href = "member.html#login"; }
+    }, 60);
   });
+
 
   $("btnLogin")?.addEventListener("click", async ()=>{
     const email = String($("email")?.value||"").trim();
@@ -364,8 +428,8 @@ async function init(){
     }catch{}
 
     if(ok){
-      await loadInfo();
-      await loadMyOrders(s, data.user);
+      await loadInfo(s, user, deviceId);
+await loadMyOrders(s, data.user);
     }
   });
 
