@@ -1,0 +1,29 @@
+-- reset_pedidos_por_email.sql
+-- ⚠️ APAGA o histórico de pedidos desse e-mail no banco (Supabase).
+-- Não remove e-mails do Gmail (isso é fora do banco).
+-- Use no SQL Editor do Supabase com cuidado.
+
+begin;
+
+-- (Opcional) conferir quantos pedidos existem
+select count(*) as total_orders
+from public.cs_orders
+where lower(buyer_email) = lower('vitorlucasdesouzamarques@gmail.com');
+
+-- Apagar aprovações ligadas a esses pedidos (se não tiver ON DELETE CASCADE)
+delete from public.cs_approvals
+where order_id in (
+  select id from public.cs_orders
+  where lower(buyer_email) = lower('vitorlucasdesouzamarques@gmail.com')
+);
+
+-- Apagar os pedidos
+delete from public.cs_orders
+where lower(buyer_email) = lower('vitorlucasdesouzamarques@gmail.com');
+
+-- (Opcional) conferir se zerou
+select count(*) as total_orders_after
+from public.cs_orders
+where lower(buyer_email) = lower('vitorlucasdesouzamarques@gmail.com');
+
+commit;
