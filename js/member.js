@@ -1,294 +1,411 @@
-// js/member.js — Área do Membro (sessão, pedidos, acessos, infos, logout)
+// member.js — Área do Membro (auth + acessos)
 (() => {
   "use strict";
 
+  const DEBUG = true;
+  const log = (...a) => DEBUG && console.log("[member]", ...a);
+  const warn = (...a) => DEBUG && console.warn("[member]", ...a);
+
   const $ = (id) => document.getElementById(id);
 
-  function setText(id, v){
-    const el = $(id);
-    if(!el) return;
-    el.textContent = v == null ? "" : String(v);
+  function setText(el, text) {
+    if (!el) return;
+    el.textContent = text == null ? "" : String(text);
   }
 
-  function renderInfoBox(el, rows){
-    if(!el) return;
-    el.innerHTML = "";
-    const ul = document.createElement("ul");
-    ul.className = "list";
-    (rows || []).forEach(({label, value}) => {
-      if(value == null || value === "") return;
-      const li = document.createElement("li");
-      const b = document.createElement("b");
-      b.textContent = `${label}: `;
-      const span = document.createElement("span");
-      span.textContent = String(value);
-      li.appendChild(b);
-      li.appendChild(span);
-      ul.appendChild(li);
-    });
-    el.appendChild(ul);
+  function show(el, on) {
+    if (!el) return;
+    el.hidden = !on;
+    el.setAttribute("aria-hidden", on ? "false" : "true");
+    el.style.display = on ? "" : "none";
   }
 
-
-  function fmtDate(v){
-    if(!v) return "";
-    try{
-      const d = new Date(v);
-      if(Number.isNaN(d.getTime())) return String(v);
-      return d.toLocaleString("pt-BR");
-    }catch{
-      return String(v);
+  function moneyBRL(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "R$ 0,00";
+    try {
+      return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    } catch {
+      return `R$ ${n}`;
     }
   }
 
-  function normalizeStatus(v){
-    const s = String(v || "").toLowerCase().trim();
-    if(!s) return "";
-    if(["aprovado","approved","ok","liberado"].includes(s)) return "APROVADO";
-    if(["pago","paid"].includes(s)) return "PAGO";
-    if(["pendente","pending","em_analise","em análise","analise","análise","criado"].includes(s)) return "PENDENTE";
-    return String(v);
+  function fmtDate(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString("pt-BR");
+    } catch {
+      return String(iso || "");
+    }
   }
 
-  function isApproved(order){
-    const o = normalizeStatus(order?.order_status);
-    return o === "APROVADO" || !!order?.approved_at;
+  function pageForProductId(pid) {
+    const p = String(pid || "").toLowerCase();
+    if (p === "final") return "final.html";
+    if (p === "lojista") return "lojista.html";
+    // vip (ou qualquer coisa) cai no VIP
+    return "vip.html";
   }
 
-  async function mustLogged(){
-    const u = await CS.user().catch(() => null);
-    if(!u?.id){
-      try{ localStorage.setItem("cs_after_login", window.location.href); }catch{}
-      CS.toast("Entre na sua conta para ver seus acessos.");
-      CS.go("member.html#login");
+  async function safeUser() {
+    // Em alguns navegadores, a sessão pode chegar “um tiquinho” depois.
+    // Faz 2 tentativas curtinhas antes de declarar deslogado.
+    try {
+      let u = await CS.user();
+      if (u) return u;
+      await new Promise((r) => setTimeout(r, 120));
+      u = await CS.user();
+      return u;
+    } catch (e) {
+      warn("CS.user falhou", e);
       return null;
     }
-    return u;
   }
 
-  async function loadProductsIndex(){
-    try{
-      const res = await fetch("./products.json", { cache: "no-store" });
-      if(!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
-    }catch{
-      return [];
-    }
+  function toggleAuth(logged) {
+    const authBox = $("authBox");
+    const loggedBox = $("loggedBox");
+    show(authBox, !logged);
+    show(loggedBox, !!logged);
   }
 
-  async function resolveAccessTarget(order, productsIndex){
-    const pid = String(order?.product_id || "").toLowerCase();
+  async function renderInfo(user) {
+    const infoBox = $("infoBox");
+    if (!infoBox) return;
+    infoBox.innerHTML = "";
 
-    // páginas existentes no projeto atual
-    if(pid === "final") return "final.html";
-    if(pid === "lojista") return "vip.html"; // título do projeto: "VIP — Lojistas"
-    if(pid === "vip"){
-      const p = (productsIndex || []).find(x => String(x?.id || "").toLowerCase() === "vip");
-      const invite = p?.whatsapp_invite;
-      if(invite) return invite; // abre WhatsApp
-      return "index.html#sec-suporte";
-    }
-
-    return "products.html";
-  }
-
-  function renderOrders(listEl, orders, productsIndex){
-    listEl.innerHTML = "";
-
-    if(!orders || orders.length === 0){
-      const empty = document.createElement("div");
-      empty.className = "muted";
-      empty.style.padding = "10px 2px";
-      empty.textContent = "Nenhum pedido encontrado ainda. Vá em Produtos para comprar.";
-      listEl.appendChild(empty);
+    if (!user) {
+      const p = document.createElement("div");
+      p.className = "muted";
+      p.textContent = "Entre para ver suas informações.";
+      infoBox.appendChild(p);
       return;
     }
 
-    orders.forEach((o) => {
-      const approved = isApproved(o);
+    const deviceId = (typeof CS.getUserDeviceId === "function") ? (CS.getUserDeviceId() || "—") : "—";
+    const rows = [
+      ["E-mail", user.email || "—"],
+      ["User ID", user.id || "—"],
+      ["Provider", (user.app_metadata && user.app_metadata.provider) || "—"],
+      ["Criado em", user.created_at ? fmtDate(user.created_at) : "—"],
+      ["Dispositivo", deviceId],
+      ["Navegador", navigator.userAgent],
+    ];
 
-      const card = document.createElement("section");
-      card.className = "card";
+    rows.forEach(([k, v]) => {
+      const line = document.createElement("div");
+      line.style.display = "flex";
+      line.style.gap = "10px";
+      line.style.justifyContent = "space-between";
+      line.style.padding = "8px 0";
+      line.style.borderBottom = "1px solid rgba(255,255,255,.08)";
 
-      const inner = document.createElement("div");
-      inner.className = "cardInner";
+      const a = document.createElement("b");
+      a.textContent = k;
+      const b = document.createElement("span");
+      b.className = "muted";
+      b.style.textAlign = "right";
+      b.style.wordBreak = "break-word";
+      b.textContent = String(v);
 
-      const top = document.createElement("div");
-      top.style.display = "flex";
-      top.style.alignItems = "center";
-      top.style.justifyContent = "space-between";
-      top.style.gap = "10px";
-
-      const left = document.createElement("div");
-
-      const title = document.createElement("b");
-      title.textContent = o.product_name || o.product_id || "Produto";
-
-      const sub = document.createElement("div");
-      sub.className = "muted";
-      const idShort = String(o.id || "").slice(0, 8);
-      sub.textContent = `Pedido #${idShort} • ${fmtDate(o.created_at)}`;
-
-      left.appendChild(title);
-      left.appendChild(document.createElement("br"));
-      left.appendChild(sub);
-
-      const right = document.createElement("div");
-      right.style.display = "flex";
-      right.style.gap = "8px";
-      right.style.flexWrap = "wrap";
-      right.style.justifyContent = "flex-end";
-
-      const chipPay = document.createElement("span");
-      chipPay.className = "chip";
-      chipPay.textContent = normalizeStatus(o.payment_status) || "—";
-
-      const chipOrd = document.createElement("span");
-      chipOrd.className = "chip";
-      chipOrd.textContent = normalizeStatus(o.order_status) || "—";
-
-      right.appendChild(chipPay);
-      right.appendChild(chipOrd);
-
-      top.appendChild(left);
-      top.appendChild(right);
-
-      const actions = document.createElement("div");
-      actions.style.display = "flex";
-      actions.style.gap = "10px";
-      actions.style.marginTop = "12px";
-      actions.style.flexWrap = "wrap";
-
-      // Se não está aprovado ainda, um botão pra ir pro pagamento
-      const pay = normalizeStatus(o.payment_status);
-      if(!approved && pay !== "PAGO"){
-        const btnPay = document.createElement("button");
-        btnPay.type = "button";
-        btnPay.className = "btn";
-        btnPay.textContent = "Ir para pagamento";
-        btnPay.addEventListener("click", () => {
-          try{ localStorage.setItem("cs_last_order_id", String(o.id)); }catch{}
-          CS.go(`pagamento.html?oid=${encodeURIComponent(String(o.id))}`);
-        });
-        actions.appendChild(btnPay);
-      }
-
-      // Acesso: somente aqui (Área do Membro), somente quando aprovado
-      const btnAccess = document.createElement("button");
-      btnAccess.type = "button";
-      btnAccess.className = approved ? "btn primary" : "btn2";
-      btnAccess.disabled = !approved;
-      btnAccess.textContent = approved ? "Acessar agora" : "Aguardando aprovação";
-
-      btnAccess.addEventListener("click", async () => {
-        if(!approved) return;
-        const target = await resolveAccessTarget(o, productsIndex);
-        if(/^https?:\/\//i.test(target)){
-          window.open(target, "_blank", "noopener,noreferrer");
-        }else{
-          CS.go(target);
-        }
-      });
-
-      actions.appendChild(btnAccess);
-
-      inner.appendChild(top);
-      inner.appendChild(actions);
-      card.appendChild(inner);
-
-      listEl.appendChild(card);
+      line.appendChild(a);
+      line.appendChild(b);
+      infoBox.appendChild(line);
     });
   }
 
-  async function loadMyOrders(u){
-    const client = CS.client();
-    const { data, error } = await client
-      .from("cs_orders")
-      .select("id, created_at, product_id, product_name, amount_cents, amount, payment_status, order_status, approved_at, approved_by")
-      .eq("user_id", u.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
+  function mountOrderCard(order) {
+    const card = document.createElement("div");
+    card.className = "miniCard";
 
-    if(error){
-      console.error("[member] cs_orders select error:", error);
-      throw error;
+    const top = document.createElement("div");
+    top.className = "row";
+    top.style.alignItems = "flex-start";
+
+    const left = document.createElement("div");
+    const title = document.createElement("div");
+    title.style.fontWeight = "700";
+    title.textContent = order.product_name || order.product_id || "Produto";
+
+    const meta = document.createElement("div");
+    meta.className = "muted";
+    meta.textContent = `Pedido #${String(order.id).slice(0, 8)} • ${fmtDate(order.created_at)}`;
+
+    left.appendChild(title);
+    left.appendChild(meta);
+
+    const right = document.createElement("div");
+    right.style.display = "flex";
+    right.style.flexDirection = "column";
+    right.style.gap = "6px";
+    right.style.alignItems = "flex-end";
+
+    const chipPay = document.createElement("span");
+    chipPay.className = "chip";
+    chipPay.textContent = (order.payment_status || "—").toUpperCase();
+
+    const chipOrd = document.createElement("span");
+    chipOrd.className = "chip";
+    chipOrd.textContent = (order.order_status || "—").toUpperCase();
+
+    right.appendChild(chipPay);
+    right.appendChild(chipOrd);
+
+    top.appendChild(left);
+    top.appendChild(right);
+    card.appendChild(top);
+
+    const amount = document.createElement("div");
+    amount.className = "muted";
+    amount.style.marginTop = "10px";
+    amount.textContent = `Valor: ${moneyBRL(order.amount ?? order.amount_cents ? (Number(order.amount_cents) / 100) : order.amount)}`;
+    card.appendChild(amount);
+
+    const actions = document.createElement("div");
+    actions.style.marginTop = "10px";
+    actions.style.display = "grid";
+    actions.style.gap = "10px";
+
+    const paid = String(order.payment_status || "").toUpperCase() === "PAGO";
+    const approved = String(order.order_status || "").toUpperCase() === "APROVADO";
+
+    const btn1 = document.createElement("button");
+    btn1.className = "btn primary";
+    btn1.type = "button";
+
+    if (approved) {
+      btn1.textContent = "Acessar agora";
+      btn1.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        CS.go(pageForProductId(order.product_id));
+      }, { passive: false });
+    } else {
+      btn1.textContent = "Ir para pagamento";
+      btn1.disabled = paid;
+      btn1.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        CS.go(`pagamento.html?oid=${encodeURIComponent(String(order.id))}`);
+      }, { passive: false });
     }
-    return Array.isArray(data) ? data : [];
+
+    const btn2 = document.createElement("button");
+    btn2.className = "btn";
+    btn2.type = "button";
+    btn2.disabled = !paid || approved;
+    btn2.textContent = approved ? "Acesso liberado" : (paid ? "Aguardando aprovação" : "Aguardando pagamento");
+
+    actions.appendChild(btn1);
+    actions.appendChild(btn2);
+    card.appendChild(actions);
+
+    return card;
   }
 
-  async function fillUserInfo(u){
-    const infoBox = $("infoBox");
-    const rows = [
-      { label: "E-mail", value: u.email || "" },
-      { label: "User ID", value: u.id || "" },
-      { label: "Criado em", value: u.created_at ? fmtDate(u.created_at) : "" },
-      { label: "Último login", value: u.last_sign_in_at ? fmtDate(u.last_sign_in_at) : "" },
-      { label: "Provider", value: u.app_metadata?.provider || "" },
-    ];
+  async function renderOrders(user) {
+    const list = $("ordersList");
+    const chip = $("ordersChip");
+    if (!list) return;
 
-    const meta = u.user_metadata || {};
-    if(meta.name)  rows.push({ label: "Nome", value: meta.name });
-    if(meta.phone) rows.push({ label: "Telefone", value: meta.phone });
+    list.innerHTML = "";
+    setText(chip, "carregando");
 
-    renderInfoBox(infoBox, rows);
+    if (!user) {
+      setText(chip, "deslogado");
+      const p = document.createElement("div");
+      p.className = "muted";
+      p.textContent = "Entre para ver seus acessos.";
+      list.appendChild(p);
+      return;
+    }
+
+    const client = CS.client();
+    if (!client) {
+      setText(chip, "erro");
+      const p = document.createElement("div");
+      p.className = "muted";
+      p.textContent = "Erro ao iniciar Supabase. Confira config.js.";
+      list.appendChild(p);
+      return;
+    }
+
+    try {
+      const { data, error } = await client
+        .from("cs_orders")
+        .select("id, created_at, product_id, product_name, amount, amount_cents, currency, payment_status, order_status")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      const arr = Array.isArray(data) ? data : [];
+      setText(chip, arr.length ? "ok" : "vazio");
+
+      if (!arr.length) {
+        const empty = document.createElement("div");
+        empty.className = "muted";
+        empty.textContent = "Nenhum pedido encontrado ainda.";
+        list.appendChild(empty);
+        return;
+      }
+
+      arr.forEach((o) => list.appendChild(mountOrderCard(o)));
+    } catch (e) {
+      console.error("[member] erro ao carregar pedidos", e);
+      setText(chip, "erro");
+      const p = document.createElement("div");
+      p.className = "muted";
+      p.textContent = "Falha ao carregar seus acessos. Tenta atualizar a página.";
+      list.appendChild(p);
+    }
   }
 
-  async function wireLogout(){
-    const btn = $("btnLogout");
-    if(!btn) return;
+  async function setAdminPill(user) {
+    const pill = $("adminPill");
+    if (!pill) return;
+    pill.style.display = "none";
+    if (!user) return;
 
-    btn.addEventListener("click", async (e) => {
+    const client = CS.client();
+    if (!client) return;
+
+    try {
+      const { data, error } = await client
+        .from("cs_admins")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) return;
+      if (data) pill.style.display = "inline-flex";
+    } catch {
+      // silencioso
+    }
+  }
+
+  async function boot() {
+    const whoChip = $("emailChip");
+    const sessionChip = $("sessionChip");
+    const btnLogout = $("btnLogout");
+    const btnBackProducts = $("btnBackProducts");
+
+    // Voltar
+    if (btnBackProducts) {
+      btnBackProducts.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        CS.go("products.html");
+      }, { passive: false });
+    }
+
+    // Logout (click + touch)
+    if (btnLogout) {
+      const handler = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        btnLogout.disabled = true;
+        setText(sessionChip, "saindo...");
+        try {
+          await CS.logout();
+        } catch (err) {
+          console.error("[member] logout falhou", err);
+        }
+        // força UI reset
+        window.location.href = new URL("member.html", window.location.href).toString();
+      };
+      btnLogout.addEventListener("click", handler, { passive: false });
+      btnLogout.addEventListener("touchstart", handler, { passive: false });
+    }
+
+    // Login / Signup
+    const emailInput = $("loginEmail");
+    const passInput = $("loginPass");
+    const btnLogin = $("btnLogin");
+    const btnSignup = $("btnSignup");
+    const authMsg = $("authMsg");
+
+    const setAuthMsg = (t) => setText(authMsg, t);
+
+    const getCreds = () => {
+      const email = (emailInput?.value || "").trim();
+      const pass = (passInput?.value || "").trim();
+      return { email, pass };
+    };
+
+    const client = CS.client();
+
+    const doLogin = async (create) => {
+      const { email, pass } = getCreds();
+      if (!email || !pass) {
+        setAuthMsg("Preenche e-mail e senha.");
+        return;
+      }
+      if (!client) {
+        setAuthMsg("Erro no Supabase (config.js). ");
+        return;
+      }
+      try {
+        setAuthMsg(create ? "Criando conta..." : "Entrando...");
+        const res = create
+          ? await client.auth.signUp({ email, password: pass })
+          : await client.auth.signInWithPassword({ email, password: pass });
+
+        if (res.error) throw res.error;
+        setAuthMsg("OK!");
+      } catch (e) {
+        console.error("[member] auth erro", e);
+        setAuthMsg("Falha no login. Confere e-mail/senha.");
+      }
+    };
+
+    if (btnLogin) btnLogin.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      doLogin(false);
+    }, { passive: false });
 
-      try{
-        const client = CS.client();
-        await client.auth.signOut();
-      }catch(err){
-        console.warn("[member] signOut warn:", err);
-      }
+    if (btnSignup) btnSignup.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      doLogin(true);
+    }, { passive: false });
 
-      try{ localStorage.removeItem("cs_last_order_id"); }catch{}
-      try{ localStorage.removeItem("cs_after_login"); }catch{}
+    // Estado inicial
+    const user = await safeUser();
+    log("user inicial", user ? { id: user.id, email: user.email } : null);
+    setText(whoChip, user?.email || "—");
+    setText(sessionChip, user ? "ativa" : "desligada");
+    toggleAuth(!!user);
+    await setAdminPill(user);
+    await renderInfo(user);
+    await renderOrders(user);
 
-      CS.toast("Você saiu da conta.");
-      setTimeout(() => CS.go("index.html"), 250);
-    }, { passive:false });
+    // Redirect pós-login (checkout/pagamento)
+    const after = localStorage.getItem("cs_after_login");
+    if (after && user) {
+      localStorage.removeItem("cs_after_login");
+      CS.go(after);
+      return;
+    }
+
+    // Listener global
+    CS.onAuthChange(async (u) => {
+      log("auth change", u ? { id: u.id, email: u.email } : null);
+      setText(whoChip, u?.email || "—");
+      setText(sessionChip, u ? "ativa" : "desligada");
+      toggleAuth(!!u);
+      await setAdminPill(u);
+      await renderInfo(u);
+      await renderOrders(u);
+    });
   }
 
-  document.addEventListener("DOMContentLoaded", async () => {
-    const listEl = $("list");
-    const statusChip = $("statusChip");
-
-    try{
-      if(statusChip) statusChip.textContent = "carregando";
-      await wireLogout();
-
-      const u = await mustLogged();
-      if(!u) return;
-
-      setText("whoChip", u.email || "");
-      setText("sessionHint", "Sessão ativa");
-
-      await fillUserInfo(u);
-
-      const productsIndex = await loadProductsIndex();
-      const orders = await loadMyOrders(u);
-
-      if(listEl) renderOrders(listEl, orders, productsIndex);
-
-      if(statusChip) statusChip.textContent = "ok";
-    }catch(err){
-      console.error("[member] fatal:", err);
-      if(statusChip) statusChip.textContent = "erro";
-      if(listEl){
-        listEl.innerHTML = "";
-        const div = document.createElement("div");
-        div.className = "muted";
-        div.textContent = "Erro ao carregar seus pedidos. Tente novamente.";
-        listEl.appendChild(div);
-      }
+  document.addEventListener("DOMContentLoaded", () => {
+    try {
+      boot();
+    } catch (e) {
+      console.error("[member] boot crash", e);
     }
   });
 })();

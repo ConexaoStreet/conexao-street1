@@ -1,194 +1,248 @@
+// vault.js — páginas protegidas de fornecedores (vip/final/lojista)
+// Regras:
+// - precisa estar logado (Supabase Auth)
+// - precisa ter pedido APROVADO para o produto correspondente
+// - lista vem de data/providers_<kind>.json (fallback: links.json)
 (() => {
-"use strict";
+  "use strict";
 
-const $ = (id)=>document.getElementById(id);
+  const DEBUG = true;
+  const log = (...a) => DEBUG && console.log("[vault]", ...a);
+  const warn = (...a) => DEBUG && console.warn("[vault]", ...a);
 
-function accessOkForKind(order, kind){
-  const pid = String(order?.product_id||"").toLowerCase();
-  const ord = String(order?.order_status||order?.status||"");
-  const approved = /aprovado|approved/i.test(ord);
-  if(!approved) return false;
+  const $ = (id) => document.getElementById(id);
 
-  // VIP pode vir como 'vip' ou 'lojista'
-  if(kind === "vip") return (pid === "vip" || pid === "lojista");
-  if(kind === "final") return (pid === "final");
-  return false;
-}
+  const KIND_MAP = {
+    vip: { title: "Grupo VIP", file: "data/providers_vip.json", product_id: "vip" },
+    lojista: { title: "Fornecedores Lojistas", file: "data/providers_lojista.json", product_id: "lojista" },
+    final: { title: "Fornecedores Consumidor Final", file: "data/providers_final.json", product_id: "final" },
+  };
 
-async function ensureLogged(){
-  const s = CS.client();
-  const { data } = await s.auth.getSession();
-  const sess = data?.session || null;
-  if(!sess?.user){
-    CS.go("./member.html#login");
+  function safeGo(path) {
+    try {
+      const url = new URL(path, window.location.href);
+      window.location.href = url.toString();
+    } catch {
+      window.location.href = path;
+    }
+  }
+
+  function setChip(id, text) {
+    const el = $(id);
+    if (el) el.textContent = String(text ?? "");
+  }
+
+  function showMsg(title, desc, primaryText, primaryHref) {
+    const box = $("vaultMsg");
+    if (!box) return;
+    box.innerHTML = "";
+
+    const h = document.createElement("b");
+    h.textContent = title;
+    const p = document.createElement("div");
+    p.className = "muted";
+    p.style.marginTop = "6px";
+    p.textContent = desc;
+
+    box.appendChild(h);
+    box.appendChild(p);
+
+    if (primaryText && primaryHref) {
+      const a = document.createElement("a");
+      a.className = "btn primary";
+      a.style.marginTop = "12px";
+      a.href = primaryHref;
+      a.textContent = primaryText;
+      a.addEventListener(
+        "click",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          safeGo(primaryHref);
+        },
+        { passive: false }
+      );
+      box.appendChild(a);
+    }
+  }
+
+  async function getUserOrWait() {
+    // Em alguns celulares o getSession pode demorar alguns ms para hidratar.
+    // Faz 2 tentativas rápidas antes de desistir.
+    for (let i = 0; i < 2; i++) {
+      const u = await CS.user();
+      if (u) return u;
+      await new Promise((r) => setTimeout(r, 120));
+    }
     return null;
   }
-  return { s, user:sess.user };
-}
 
-async function getLatestApprovedOrderForKind(s, user, kind){
-  // tenta por user_id, depois por buyer_email
-  const fields = "id,created_at,product_id,order_status,status";
-  let rows = [];
-  try{
-    const r1 = await s.from("cs_orders").select(fields).eq("user_id", user.id)
-      .order("created_at", { ascending:false }).limit(30);
-    if(!r1.error) rows = r1.data || [];
-  }catch{}
+  async function hasApprovedAccess(client, userId, productId) {
+    const { data, error } = await client
+      .from("cs_orders")
+      .select("id, product_id, payment_status, order_status, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
 
-  if(!rows.length){
-    try{
-      const r2 = await s.from("cs_orders").select(fields).ilike("buyer_email", String(user.email||""))
-        .order("created_at", { ascending:false }).limit(30);
-      if(!r2.error) rows = r2.data || [];
-    }catch{}
-  }
-
-  const ok = (rows||[]).find(o=>accessOkForKind(o, kind));
-  return ok || null;
-}
-
-// =========================
-// Providers (para member.html)
-// =========================
-function providerCard(p){
-  const div=document.createElement("div");
-  div.className="prov";
-  div.innerHTML = `
-    <div class="provImg" style="background-image:url('${p.image_url||""}')"></div>
-    <div class="provBody">
-      <b>${p.name||"—"}</b>
-      <small>${p.subtitle||""}</small>
-      <a class="btn" href="${p.link||"#"}" target="_blank" rel="noopener">Abrir</a>
-    </div>
-  `;
-  return div;
-}
-
-async function loadProviders(){
-  const s=CS.client();
-  const grid=$("providersGrid");
-  const chip=$("countChip");
-  const card=$("providersCard");
-  if(!grid) return;
-  if(card) card.style.display = "block";
-
-  chip && (chip.textContent = "carregando");
-  const {data,error}=await s.from("cs_providers").select("id,name,subtitle,link,image_url,is_active").eq("is_active",true).order("created_at",{ascending:false}).limit(500);
-  if(error){
-    chip && (chip.textContent = "erro");
-    grid.innerHTML = `<div class="row"><b>Sem fornecedores</b><br/><small class="sub">Configure cs_providers no Supabase.</small></div>`;
-    await CS.log("providers_load_error",{code:error.code,message:error.message});
-    return;
-  }
-  chip && (chip.textContent = String(data?.length||0));
-  grid.innerHTML="";
-  (data||[]).forEach(p=>grid.appendChild(providerCard(p)));
-}
-
-// =========================
-// Links Vault (vip.html / final.html)
-// =========================
-function linkRow(l){
-  const li=document.createElement("li");
-  li.className="vaultRow";
-  const title = l.title || l.name || "Link";
-  const href  = l.url || l.link || "#";
-  const cat   = l.category ? `<span class="badge">${l.category}</span>` : "";
-  li.innerHTML = `
-    <div class="vaultLine">
-      <div>
-        <b>${title}</b><br/>
-        <small class="sub">${(l.subtitle||l.note||"")}</small>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        ${cat}
-        <a class="btn" href="${href}" target="_blank" rel="noopener">Clique</a>
-      </div>
-    </div>
-  `;
-  return li;
-}
-
-async function loadLinks(kind){
-  const s = CS.client();
-  const list = $("vaultList");
-  const chip = $("countChip");
-  if(!list) return;
-  chip && (chip.textContent = "carregando");
-
-  // Tenta carregar do Supabase; se não existir, cai pro links.json
-  let items=[];
-  try{
-    const r = await s
-      .from("cs_links")
-      .select("id,title,url,subtitle,category,is_active")
-      .eq("is_active", true)
-      .eq("kind", kind)
-      .order("sort", { ascending:true })
-      .limit(1000);
-    if(!r.error) items = r.data || [];
-  }catch{}
-
-  if(!items.length){
-    try{
-      const res = await fetch("./links.json", { cache:"no-store" });
-      if(res.ok){
-        const arr = await res.json();
-        if(Array.isArray(arr)) items = arr.filter(x => String(x.kind||"").toLowerCase() === kind);
-      }
-    }catch{}
-  }
-
-  list.innerHTML = "";
-  chip && (chip.textContent = String(items.length||0));
-
-  if(!items.length){
-    list.innerHTML = `<li class="vaultRow"><div class="vaultLine"><b>Sem links</b><small class="sub">Ainda não cadastramos links aqui.</small></div></li>`;
-    return;
-  }
-  items.forEach(l=>list.appendChild(linkRow(l)));
-}
-
-async function boot(){
-  const ctx = await ensureLogged();
-  if(!ctx) return;
-  const { s, user } = ctx;
-
-  // ✅ Este script é para páginas de cofre (vip.html / final.html).
-  // No member.html, ele NÃO deve interferir (evita duplo render/bugs com member.js).
-  const kind = String(window.__VAULT_KIND__ || "").toLowerCase();
-  if(kind !== "vip" && kind !== "final") return;
-
-  $("backMember")?.addEventListener("click", (e)=>{ e.preventDefault(); CS.go("./member.html"); }, {passive:false});
-
-  // Gate: precisa estar aprovado
-  const order = await getLatestApprovedOrderForKind(s, user, kind);
-  if(!order){
-    await CS.log("vault_denied", { kind });
-    CS.showPopup({
-      title:"Acesso bloqueado",
-      msg:"Seu acesso ainda não foi aprovado. Finalize o pagamento e aguarde a liberação.",
-      actions:[
-        {label:"Voltar", primary:true, onClick: ()=>CS.go("./member.html")},
-        {label:"Ver produtos", href:"./products.html", target:"_self"}
-      ]
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    return rows.some((o) => {
+      const pid = String(o.product_id || "");
+      const paid = String(o.payment_status || "").toUpperCase() === "PAGO";
+      const ok = String(o.order_status || "").toUpperCase() === "APROVADO";
+      return pid === productId && paid && ok;
     });
-    return;
   }
 
-  // Carrega links do cofre
-  if($("vaultList")){
-    await loadLinks(kind);
-    return;
+  async function loadProvidersJson(path) {
+    const res = await fetch(path, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Falha ao carregar ${path} (${res.status})`);
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error(`${path} inválido (esperado array)`);
+    return data;
   }
-}
 
-document.addEventListener("DOMContentLoaded", ()=>{
-  boot().catch((e)=>{
-    console.warn(e);
-    CS.toast("Erro ao carregar", false);
+  function normalizeLinks(data) {
+    // suporta:
+    // - array de {name, url}
+    // - array de {title, href}
+    // - array de strings
+    return (Array.isArray(data) ? data : []).map((x, idx) => {
+      if (typeof x === "string") return { name: `Link ${idx + 1}`, url: x };
+      const name = String(x?.name || x?.title || x?.label || `Link ${idx + 1}`);
+      const url = String(x?.url || x?.href || x?.link || "");
+      return { name, url };
+    });
+  }
+
+  function renderGrid(items) {
+    const grid = $("providersGrid");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    const safe = normalizeLinks(items).filter((x) => x.url && /^https?:\/\//i.test(x.url));
+
+    if (safe.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "muted";
+      empty.textContent = "Nenhum fornecedor encontrado ainda.";
+      grid.appendChild(empty);
+      return;
+    }
+
+    safe.forEach((it) => {
+      const a = document.createElement("a");
+      a.className = "linkRow";
+      a.href = it.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = it.name;
+      grid.appendChild(a);
+    });
+  }
+
+  async function boot() {
+    const kind = String(window.__VAULT_KIND__ || "").toLowerCase();
+    const meta = KIND_MAP[kind];
+    if (!meta) return; // não é página de vault
+
+    log("boot", { kind });
+
+    // labels
+    const title = $("vaultTitle");
+    if (title) title.textContent = meta.title;
+    setChip("vaultKindChip", kind.toUpperCase());
+    setChip("vaultStatusChip", "carregando");
+
+    // precisa de CS
+    if (!window.CS || !CS.client) {
+      setChip("vaultStatusChip", "erro");
+      showMsg("Erro", "CS/ui.js não carregou. Verifique a ordem dos scripts.", "Voltar", "index.html");
+      return;
+    }
+
+    const client = CS.client();
+    if (!client) {
+      setChip("vaultStatusChip", "erro");
+      showMsg("Erro", "Supabase não configurado (config.js).", "Ir para Área do Membro", "member.html");
+      return;
+    }
+
+    // auth
+    const user = await getUserOrWait();
+    if (!user) {
+      setChip("vaultStatusChip", "deslogado");
+      showMsg(
+        "Você precisa entrar",
+        "Faça login na Área do Membro para acessar esta lista.",
+        "Ir para Área do Membro",
+        "member.html#login"
+      );
+      return;
+    }
+
+    // permissão (orders)
+    try {
+      const ok = await hasApprovedAccess(client, user.id, meta.product_id);
+      if (!ok) {
+        setChip("vaultStatusChip", "sem acesso");
+        showMsg(
+          "Acesso não liberado",
+          "Seu pedido ainda não foi aprovado para esta lista. Confira em “Seus acessos”.",
+          "Ver meus acessos",
+          "member.html"
+        );
+        return;
+      }
+    } catch (e) {
+      warn("RLS/SELECT cs_orders falhou", e);
+      setChip("vaultStatusChip", "erro");
+      showMsg(
+        "Erro ao verificar acesso",
+        "Não foi possível ler seus pedidos. Verifique as policies (RLS) do Supabase para cs_orders (SELECT do próprio usuário).",
+        "Voltar",
+        "member.html"
+      );
+      return;
+    }
+
+    // carrega lista
+    try {
+      let items = await loadProvidersJson(meta.file);
+      setChip("vaultStatusChip", "ok");
+      renderGrid(items);
+      const msg = $("vaultMsg");
+      if (msg) msg.innerHTML = "";
+    } catch (e1) {
+      warn("providers json falhou, tentando links.json", e1);
+      try {
+        const fallback = await loadProvidersJson("links.json");
+        setChip("vaultStatusChip", "ok");
+        renderGrid(fallback);
+        const msg = $("vaultMsg");
+        if (msg) {
+          msg.innerHTML = "";
+          const small = document.createElement("div");
+          small.className = "muted";
+          small.style.marginTop = "10px";
+          small.textContent = "(Fallback: links.json)";
+          msg.appendChild(small);
+        }
+      } catch (e2) {
+        warn("fallback links.json falhou", e2);
+        setChip("vaultStatusChip", "erro");
+        showMsg(
+          "Erro ao carregar a lista",
+          "Não achei o arquivo da lista. Confirme se data/providers_*.json existe no repo.",
+          "Voltar",
+          "member.html"
+        );
+      }
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    boot().catch((e) => warn("boot crashed", e));
   });
-});
-
 })();
