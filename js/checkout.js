@@ -135,7 +135,7 @@ const payload = {
 
     const pid = (CS.qs("id") || "").trim();
     const catalog = await loadCatalog();
-    const product = catalog.find(x => String(x.id || "") === pid) || catalog[0] || null;
+    const product = catalog.find(x => (String(x.id || "") === pid) || (Array.isArray(x.aliases) && x.aliases.map(v => String(v)).includes(pid))) || catalog[0] || null;
 
     if(!product){
       setText("name", "Produto não encontrado");
