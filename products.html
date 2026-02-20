@@ -2,254 +2,85 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0A0A0A" />
+  <title>Planos • Conexão Street</title>
 
-  <!-- CSP (GitHub Pages friendly) -->
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    base-uri 'self';
-    object-src 'none';
-    frame-ancestors 'none';
-    img-src 'self' data: https:;
-    font-src 'self' https://fonts.gstatic.com data:;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
-    connect-src 'self' https://*.supabase.co wss://*.supabase.co;
-    upgrade-insecure-requests;
-  " />
-
-  <title>Produtos • Conexão Street</title>
-  <meta name="description" content="Acesse listas premium de fornecedores brasileiros e importados. Curadoria real, acesso após aprovação e padrão acima do comum." />
-
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Conexão Street • Acessos Premium" />
-  <meta property="og:description" content="Curadoria real, acesso rápido e padrão acima do comum. Liberação após aprovação." />
-  <meta property="og:image" content="./img/og-square.jpg" />
-  <meta property="og:locale" content="pt_BR" />
-
-  <!-- Icons / PWA -->
-  <link rel="icon" href="./img/favicon.svg" type="image/svg+xml" />
   <link rel="manifest" href="./manifest.webmanifest" />
-
-  <!-- Fonts (serif + sans) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
-
+  <link rel="icon" href="./img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
 </head>
-
 <body>
-  <a class="skipLink" href="#acessos">Pular para acessos</a>
+  <div class="bg"></div>
+  <div class="noise"></div>
 
-  <!-- Background layers -->
-  <div class="bg" aria-hidden="true"></div>
-  <div class="noise" aria-hidden="true"></div>
-
-  <!-- Loader (ID used by JS) -->
   <div class="loader" id="loader" aria-hidden="true">
-    <div class="loaderRow">
-      <div class="spin" aria-hidden="true"></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="spin"></div>
       <div>
-        <b>Carregando</b><br />
+        <b>Carregando</b><br/>
         <span class="sub" style="max-width:none;font-size:12px">Produtos</span>
       </div>
     </div>
   </div>
 
-  <!-- Sticky Header -->
-  <header class="top topSticky" role="banner">
+  <header class="top" role="banner">
     <div class="wrap">
       <div class="bar">
-        <a class="brand" href="./index.html" aria-label="Home Conexão Street">
-          <span class="logoBox" aria-hidden="true">
-            <img src="./img/logo.svg" alt="" loading="eager" />
-          </span>
-          <span class="brandTxt">
-            <b>Conexão Street</b>
-            <small>Produtos</small>
-          </span>
+        <a class="brand" href="./index.html" aria-label="Home">
+          <div class="logoBox">
+            <img src="./img/logo.svg" alt="Logo"
+                 onerror="this.onerror=null; this.src='./img/logo.png';" />
+          </div>
+          <div>
+            <b>Conexão Street</b><br/>
+            <small>Planos</small>
+          </div>
         </a>
 
-        <!-- Desktop pills -->
-        <nav class="pills" aria-label="Navegação principal">
-          <a class="pill muted" href="./products.html">Fornecedores</a>
-          <a class="pill muted" href="./produtos.html">Produtos</a>
+        <nav class="pills" aria-label="Navegação">
+          <a class="pill muted" href="./index.html">Home</a>
+          <a class="pill muted" href="./member.html">Área do membro</a>
           <a class="pill muted" id="adminPill" href="./admin.html" style="display:none">Admin</a>
-          <a class="pill muted" href="./member.html">Área do Membro</a>
           <a class="pill" href="https://wa.me/5511919730067" target="_blank" rel="noopener">Suporte ↗</a>
         </nav>
-
-        <!-- Mobile menu -->
-        <button class="iconBtn mobileOnly" id="menuBtn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobileMenu">
-          <span class="hamburger" aria-hidden="true"></span>
-        </button>
       </div>
     </div>
-
-    <div class="mobileMenuBack mobileOnly" id="mobileMenuBack" hidden></div>
-    <nav class="mobileMenu mobileOnly" id="mobileMenu" aria-label="Menu móvel" hidden>
-      <div class="mobileMenuHead">
-        <b>Menu</b>
-        <button class="iconBtn" id="menuClose" type="button" aria-label="Fechar menu">
-          <span class="xIcon" aria-hidden="true"></span>
-        </button>
-      </div>
-      <div class="mobileMenuList">
-        <a class="pill muted" href="./products.html">Fornecedores</a>
-        <a class="pill muted" href="./produtos.html">Produtos</a>
-        <a class="pill muted" id="adminPillMobile" href="./admin.html" style="display:none">Admin</a>
-        <a class="pill muted" href="./member.html">Área do Membro</a>
-        <a class="pill" href="https://wa.me/5511919730067" target="_blank" rel="noopener">Suporte ↗</a>
-      </div>
-    </nav>
   </header>
 
-  <main class="wrap" id="main" role="main">
-    <!-- HERO -->
-    <section class="heroLux" aria-label="Apresentação">
-      <div class="heroBg" aria-hidden="true"></div>
-      <div class="heroGlow" aria-hidden="true"></div>
+  <main class="wrap" role="main">
+    <section class="section">
+      <div class="card">
+        <div class="cardInner">
+          <div class="kicker"><span class="dot"></span> Escolha seu acesso</div>
+          <div class="h1" style="margin-top:10px">Planos disponíveis</div>
+          <div class="sub" style="margin-top:10px;max-width:none">
+            Clique em <b>Comprar</b> para abrir o checkout. A liberação acontece após aprovação.
+          </div>
 
-      <div class="heroInner">
-        <span class="kickerLux">
-          <span class="dotLux" aria-hidden="true"></span>
-          Clube exclusivo • Curadoria real
-        </span>
-
-        <h1 class="h1Lux">Acesse Listas Premium de Fornecedores Brasileiros e Importados</h1>
-        <p class="subLux">Curadoria real, acesso rápido e padrão acima do comum.</p>
-
-        <div class="heroActions">
-          <a class="btn btnPrimary hasRipple" href="#acessos" data-scroll>Ver Acessos Disponíveis</a>
-          <a class="btn2 hasRipple" href="./member.html">Entrar / Acessar</a>
-        </div>
-
-        <div class="trustRow" aria-label="Provas rápidas">
-          <span class="trustPill">Pagamento seguro</span>
-          <span class="trustPill">Acesso após aprovação</span>
-          <span class="trustPill">1 dispositivo por pessoa</span>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            <span class="chip">1 dispositivo por pessoa</span>
+            <span class="chip ok">Aprovação manual</span>
+            <span class="chip">Atualizações inclusas</span>
+          </div>
         </div>
       </div>
+
+      <div class="productsGrid" id="productsGrid" aria-live="polite"></div>
+
+      <div class="footer">© 2026 Conexão Street</div>
     </section>
-
-    <!-- SECTION: PRODUCTS -->
-    <section class="section" id="acessos" aria-label="Acessos e listas disponíveis">
-      <div class="sectionHead">
-        <div>
-          <div class="sectionTitleLux">Acessos e Listas Disponíveis</div>
-          <div class="sectionSubLux">Escolha o acesso. O pagamento entra em análise e a liberação acontece após aprovação.</div>
-        </div>
-        <div class="miniTrust">
-          <span class="chip chipLux">Pix seguro</span>
-          <span class="chip chipLux">Curadoria</span>
-          <span class="chip chipLux">Atualizações</span>
-        </div>
-      </div>
-
-      <!-- IMPORTANT: keep this ID (used by js/products.js) -->
-      <div id="productsGrid" class="productsGrid" aria-live="polite"></div>
-
-      <div class="finePrint">
-        Ao comprar, você concorda com nossos termos e política. Conteúdo digital com liberação condicionada à aprovação.
-      </div>
-    </section>
-
-    <footer class="footerLux" role="contentinfo">
-      <div class="footerGrid">
-        <div>
-          <div class="footerBrand">Conexão Street</div>
-          <div class="footerSub">Luxo acessível. Acesso premium, curadoria e clareza.</div>
-        </div>
-        <div class="footerLinks" aria-label="Links do rodapé">
-          <a class="footerLink" href="#" aria-label="Termos (placeholder)">Termos</a>
-          <a class="footerLink" href="#" aria-label="Política (placeholder)">Política</a>
-          <a class="footerLink" href="https://wa.me/5511919730067" target="_blank" rel="noopener">Contato WhatsApp</a>
-        </div>
-      </div>
-      <div class="footerBottom">© 2026 Conexão Street</div>
-    </footer>
   </main>
 
-  <!-- Toast (ID used by JS) -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <!-- JSON-LD (4 products) -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    "name": "Conexão Street — Acessos e Listas",
-    "itemListElement": [
-      {
-        "@type": "Product",
-        "name": "VIP – Lojistas / Fornecedores Logísticos",
-        "description": "Acesso VIP a listas de fornecedores logísticos premium, curadoria constante e atualizações semanais. Ideal para lojistas e revendedores que buscam escala.",
-        "brand": { "@type": "Brand", "name": "Conexão Street" },
-        "sku": "vip-lojista",
-        "offers": {
-          "@type": "Offer",
-          "priceCurrency": "BRL",
-          "price": "30.00",
-          "availability": "https://schema.org/InStock",
-          "url": "./checkout.html?id=vip-lojista"
-        }
-      },
-      {
-        "@type": "Product",
-        "name": "Consumidor Final / Uso Pessoal",
-        "description": "Acesso completo para uso pessoal. Fornecedores brasileiros e importados selecionados com padrão acima da média.",
-        "brand": { "@type": "Brand", "name": "Conexão Street" },
-        "sku": "consumidor-final",
-        "offers": {
-          "@type": "Offer",
-          "priceCurrency": "BRL",
-          "price": "25.00",
-          "availability": "https://schema.org/InStock",
-          "url": "./checkout.html?id=consumidor-final"
-        }
-      },
-      {
-        "@type": "Product",
-        "name": "Grupo VIP",
-        "description": "Entrada no grupo VIP exclusivo com networking, dicas diárias e prioridade em novidades.",
-        "brand": { "@type": "Brand", "name": "Conexão Street" },
-        "sku": "grupo-vip",
-        "offers": {
-          "@type": "Offer",
-          "priceCurrency": "BRL",
-          "price": "10.00",
-          "availability": "https://schema.org/InStock",
-          "url": "./checkout.html?id=grupo-vip"
-        }
-      },
-      {
-        "@type": "Product",
-        "name": "Lista CSS Importados",
-        "description": "Lista premium curada de fornecedores e produtos importados (China, Sul e Sudeste Asiático), com contatos verificados e qualidade superior.",
-        "brand": { "@type": "Brand", "name": "Conexão Street" },
-        "sku": "css-importados",
-        "offers": {
-          "@type": "Offer",
-          "priceCurrency": "BRL",
-          "price": "25.00",
-          "availability": "https://schema.org/InStock",
-          "url": "./checkout.html?id=css-importados"
-        }
-      }
-    ]
-  }
-  </script>
-
-  <!-- Keep existing scripts (do not remove) -->
   <script src="./config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./js/ui.js"></script>
   <script src="./js/products.js"></script>
-
-  <!-- New UI-only script -->
-  <script src="./script.js"></script>
+  <script src="./js/ux.js"></script>
 </body>
 </html>

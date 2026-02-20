@@ -1,48 +1,82 @@
-<!doctype html><html lang="pt-br"><head>
+<!doctype html>
+<html lang="pt-BR">
+<head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#7A2BFF">
-  <link rel="icon" href="./img/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css" />
-<title>Uso pessoal • Conexão Street</title>
-<meta name="robots" content="noindex,nofollow"></head><body>
-<div class="bg"></div><div class="noise"></div>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0A0A0A" />
+  <title>Consumidor final • Conexão Street</title>
 
-  <div class="top">
-    <div class="wrap">
-      <div class="bar">
-        <a class="brand" href="./index.html" aria-label="Home">
-          <div class="logoBox"><img src="./img/logo.svg" alt="Logo" /></div>
-          <div>
-            <b>Conexão Street</b><br/>
-            <small>Uso pessoal</small>
-          </div>
-        </a>
-        <div class="pills">
-          <a class="pill muted" href="./products.html">Produtos</a>
-          <a class="pill muted" href="./member.html">Área do membro</a>
-          <a class="pill" href="https://wa.me/5511919730067" target="_blank" rel="noopener">Suporte ↗</a>
-        </div>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="noise"></div>
+
+  <div class="loader" id="loader" aria-hidden="true">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="spin"></div>
+      <div>
+        <b>Carregando</b><br/>
+        <span class="sub" style="max-width:none;font-size:12px">Consumidor final</span>
       </div>
     </div>
   </div>
 
-<main class="wrap"><section class="section">
-  <div class="card"><div class="cardInner">
-    <span class="kicker"><span class="dot"></span> Conteúdo protegido</span>
-    <div class="h1">Uso pessoal</div>
-    <div class="sub">Se você não estiver aprovado, nada aparece aqui.</div>
-  </div></div>
+  <header class="top" role="banner">
+    <div class="wrap">
+      <div class="bar">
+        <a class="brand" href="./member.html" aria-label="Voltar">
+          <div class="logoBox">
+            <img src="./img/logo.svg" alt="Logo"
+                 onerror="this.onerror=null; this.src='./img/logo.png';" />
+          </div>
+          <div>
+            <b>Conexão Street</b><br/>
+            <small>Consumidor final</small>
+          </div>
+        </a>
 
-  <div class="sectionTitle" style="margin-top:14px"><b>Links</b><span class="chip" id="countChip">—</span></div>
-  <div id="vaultList"></div>
-  <div style="height:12px"></div>
-  <button class="btn2" id="backMember" type="button">Voltar</button>
-</section><div class="footer">© 2026 Conexão Street</div></main>
-<div class="toast" id="toast"></div>
-<script src="./config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./js/ui.js"></script>
-<script src="./js/vault.js"></script>
-<script>window.__VAULT_KIND__="final";</script>
-</body></html>
+        <nav class="pills" aria-label="Navegação">
+          <a class="pill muted" href="./member.html" id="backMember">Voltar</a>
+          <a class="pill" href="https://wa.me/5511919730067" target="_blank" rel="noopener">Suporte ↗</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" role="main">
+    <section class="section">
+      <div class="card">
+        <div class="cardInner">
+          <div class="kicker"><span class="dot"></span> Lista liberada</div>
+          <div class="h1" style="margin-top:10px" id="vaultTitle">Consumidor final</div>
+          <div class="sub" style="margin-top:10px;max-width:none" id="vaultMsg">
+            Carregando fornecedores...
+          </div>
+
+          <!-- Compatibilidade com versões antigas -->
+          <div id="countChip" style="display:none"></div>
+          <div id="vaultList" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="providersGrid" id="providersGrid" aria-live="polite"></div>
+
+      <div class="footer">© 2026 Conexão Street</div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="./config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./js/ui.js"></script>
+  <script src="./js/vault.js"></script>
+  <script src="./js/ux.js"></script>
+</body>
+</html>

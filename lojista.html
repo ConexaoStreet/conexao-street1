@@ -1,69 +1,82 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Fornecedores • Lojistas • Conexão Street</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0A0A0A" />
+  <title>Lojista • Conexão Street</title>
 
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
 </head>
-
 <body>
+  <div class="bg"></div>
+  <div class="noise"></div>
 
-  <header class="top">
+  <div class="loader" id="loader" aria-hidden="true">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="spin"></div>
+      <div>
+        <b>Carregando</b><br/>
+        <span class="sub" style="max-width:none;font-size:12px">Lojista</span>
+      </div>
+    </div>
+  </div>
+
+  <header class="top" role="banner">
     <div class="wrap">
       <div class="bar">
-        <a class="brand" href="index.html" aria-label="Voltar para a home">
-          <span class="logoBox">
-            <img src="./img/logo.png" alt="Logo" onerror="this.style.display='none'" />
-          </span>
-          <span>
-            <b>Conexão Street</b><br />
-            <small>Fornecedores</small>
-          </span>
+        <a class="brand" href="./member.html" aria-label="Voltar">
+          <div class="logoBox">
+            <img src="./img/logo.svg" alt="Logo"
+                 onerror="this.onerror=null; this.src='./img/logo.png';" />
+          </div>
+          <div>
+            <b>Conexão Street</b><br/>
+            <small>Lojista</small>
+          </div>
         </a>
 
-        <div class="right">
-          <a class="pill" href="member.html">Área do membro</a>
-          <a class="pill" href="products.html">Produtos</a>
-          <a class="pill" href="admin.html">Admin</a>
-          <a class="pill" href="index.html#sec-suporte">Suporte ↗</a>
-        </div>
+        <nav class="pills" aria-label="Navegação">
+          <a class="pill muted" href="./member.html" id="backMember">Voltar</a>
+          <a class="pill" href="https://wa.me/5511919730067" target="_blank" rel="noopener">Suporte ↗</a>
+        </nav>
       </div>
     </div>
   </header>
 
-  <main class="wrap" style="padding-top:18px; padding-bottom:26px;">
-    <div class="card">
-      <div class="cardInner">
-        <div class="row">
-          <div>
-            <b id="vaultTitle">Fornecedores Lojistas</b>
-            <div class="muted">Lista liberada após aprovação do pedido.</div>
+  <main class="wrap" role="main">
+    <section class="section">
+      <div class="card">
+        <div class="cardInner">
+          <div class="kicker"><span class="dot"></span> Lista liberada</div>
+          <div class="h1" style="margin-top:10px" id="vaultTitle">Lojista</div>
+          <div class="sub" style="margin-top:10px;max-width:none" id="vaultMsg">
+            Carregando fornecedores...
           </div>
-          <span class="chip" id="vaultKindChip">LOJISTA</span>
+
+          <!-- Compatibilidade com versões antigas -->
+          <div id="countChip" style="display:none"></div>
+          <div id="vaultList" style="display:none"></div>
         </div>
-
-        <div class="row" style="margin-top:12px;">
-          <div class="muted">Status</div>
-          <span class="chip" id="vaultStatusChip">carregando</span>
-        </div>
-
-        <div id="vaultMsg" style="margin-top:12px;"></div>
-
-        <div id="providersGrid" class="linksGrid" style="margin-top:12px;"></div>
       </div>
-    </div>
 
-    <div class="footer">© 2026 Conexão Street</div>
+      <div class="providersGrid" id="providersGrid" aria-live="polite"></div>
+
+      <div class="footer">© 2026 Conexão Street</div>
+    </section>
   </main>
 
-  <script>
-    window.__VAULT_KIND__ = "lojista";
-  </script>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
   <script src="./config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./js/ui.js"></script>
   <script src="./js/vault.js"></script>
+  <script src="./js/ux.js"></script>
 </body>
 </html>

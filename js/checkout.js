@@ -163,7 +163,6 @@ const payload = {
         payChip.textContent = approved ? "aprovado" : "pendente";
       }
     }
-    }
 
     // Ir para pagamento: cria pedido + salva draft + abre pagamento.html
     const goPayBtn = $("goPay");

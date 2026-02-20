@@ -1,91 +1,141 @@
-<!doctype html><html lang="pt-br"><head>
+<!doctype html>
+<html lang="pt-BR">
+<head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#7A2BFF">
-  <link rel="icon" href="./img/favicon.svg" type="image/svg+xml">
-  <link rel="manifest" href="./manifest.webmanifest">
-  <meta name="theme-color" content="#07070A" />
-  <link rel="stylesheet" href="./styles.css" />
-<title>Conexão Street • VIP</title>
-<meta name="description" content="Conexão Street — curadoria e acesso liberado após aprovação.">
-</head><body>
-<div class="bg"></div><div class="noise"></div>
-<div class="loader" id="loader" aria-hidden="true"><div style="display:flex;align-items:center;gap:12px"><div class="spin"></div><div><b>Carregando</b><br/><span class="sub" style="max-width:none;font-size:12px">Conexão Street</span></div></div></div>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0A0A0A" />
+  <title>Conexão Street • Acesso VIP</title>
 
-  <div class="top">
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="noise"></div>
+
+  <div class="loader" id="loader" aria-hidden="true">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="spin"></div>
+      <div>
+        <b>Carregando</b><br/>
+        <span class="sub" style="max-width:none;font-size:12px">Conexão Street</span>
+      </div>
+    </div>
+  </div>
+
+  <header class="top" role="banner">
     <div class="wrap">
       <div class="bar">
         <a class="brand" href="./index.html" aria-label="Home">
-          <div class="logoBox"><img src="./img/logo.svg" alt="Logo" /></div>
+          <div class="logoBox">
+            <img src="./img/logo.svg" alt="Logo"
+                 onerror="this.onerror=null; this.src='./img/logo.png';" />
+          </div>
           <div>
             <b>Conexão Street</b><br/>
-            <small>Home</small>
+            <small>Clube VIP de fornecedores</small>
           </div>
         </a>
-        <div class="pills">
+
+        <nav class="pills" aria-label="Navegação">
           <a class="pill muted" href="./products.html">Fornecedores</a>
           <a class="pill muted" href="./produtos.html">Produtos</a>
-                    <a class="pill muted" id="adminPill" href="./admin.html" style="display:none">Admin</a>
-<a class="pill muted" href="./member.html">Área do membro</a>
+          <a class="pill muted" href="./member.html">Área do membro</a>
+          <a class="pill muted" id="adminPill" href="./admin.html" style="display:none">Admin</a>
           <a class="pill" href="https://wa.me/5511919730067" target="_blank" rel="noopener">Suporte ↗</a>
-        </div>
+        </nav>
       </div>
     </div>
-  </div>
+  </header>
 
-<main class="wrap" style="padding-top:18px">
-  <div class="heroRow">
-    <div class="card"><div class="cardInner">
-      <span class="kicker"><span class="dot"></span> Acesso sob aprovação</span>
-      <div class="h1">Bem-vindo a Conexão Street.</div>
-      <div class="sub">A melhor loja de Fornecedores do Brasil 👾</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-        <button class="btn" id="goProducts" type="button" style="width:auto">Ver fornecedores</button>
-        <button class="btn2" id="goMember" type="button" style="width:auto">Entrar</button>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-        <a class="pill" href="https://www.instagram.com/con.exaostreet01?igsh=c3c2OG5vcW83NWow" target="_blank" rel="noopener">Instagram ↗</a>
-        <a class="pill" href="https://www.tiktok.com/@conexo.street.for?_r=1&_t=ZS-93wqqtKMDfr" target="_blank" rel="noopener">TikTok ↗</a>
-      </div>
-    </div></div>
-    <div class="heroArt" aria-hidden="true"></div>
-  </div>
+  <main class="wrap" role="main">
+    <section class="section">
+      <div class="heroRow">
+        <div class="card">
+          <div class="cardInner">
+            <div class="kicker"><span class="dot"></span> Premium • Atualizações • Curadoria</div>
+            <div class="h1" style="margin-top:10px">Acesso VIP aos melhores fornecedores</div>
+            <div class="sub" style="margin-top:10px">
+              Um clube fechado com listas curadas, acesso controlado e suporte rápido.
+              Tudo pensado para transmitir confiança e valor — sem bagunça e sem risco.
+            </div>
 
-  <section class="section">
-    <div class="grid2">
-      <div class="card"><div class="cardInner">
-        <div class="sectionTitle"><b>Como funciona</b><span class="chip">rápido</span></div>
-        <div class="row"><div class="sub" style="max-width:none">1) Escolhe → 2) Paga → 3) “Já paguei” → 4) Admin aprova → 5) Acessa.</div></div>
-        <div class="row">
-          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
-            <div><b style="font-size:14px">Suporte (WhatsApp)</b><div class="sub" style="font-size:12px">Mesmo número do PIX.</div></div>
-            <a class="btn2" href="https://wa.me/5511919730067" target="_blank" rel="noopener" style="width:auto">Chamar</a>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+              <button class="btn" id="goProducts" type="button">Ver planos</button>
+              <button class="btn2" id="goMember" type="button">Entrar / Acessar</button>
+              <button class="btn2" id="goSecurity" type="button">Segurança & Regras</button>
+            </div>
+
+            <div class="row" id="securityBox" style="display:none">
+              <b style="font-size:14px;letter-spacing:-.2px">Segurança (anti-vazamento)</b>
+              <div class="sub" style="margin-top:6px;max-width:none">
+                • Acesso liberado após aprovação<br/>
+                • 1 dispositivo por pessoa<br/>
+                • Monitoramento básico e bloqueio em trocas suspeitas<br/>
+                • Conteúdo autoral (curadoria e organização)
+              </div>
+            </div>
+
+            <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+              <span class="chip ok">Checkout protegido</span>
+              <span class="chip">Aprovação manual</span>
+              <span class="chip">Suporte WhatsApp</span>
+            </div>
           </div>
         </div>
-      </div></div>
 
-      <div class="card"><div class="cardInner">
-        <div class="sectionTitle"><b>Segurança</b><span class="chip ok">ativa</span></div>
-        <div class="sub" style="max-width:none">Login + trava por dispositivo. Conteúdo só aparece após aprovação.</div>
-        <div style="height:10px"></div>
-        <button class="btn2" id="goSecurity" type="button" style="width:auto">Ver detalhes</button>
-        <div id="securityBox" class="row" style="display:none">
-          <ul class="list">
-            <li>1 login por dispositivo</li>
-            <li>Conteúdo secreto não fica público</li>
-            <li>Admin controla aprovações</li>
-          </ul>
+        <div class="heroArt card">
+          <div class="cardInner" style="height:100%;display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <div class="sectionTitle">
+                <b>Como funciona</b>
+                <span class="chip">3 passos</span>
+              </div>
+              <div class="sub" style="max-width:none">
+                1) Escolha o plano<br/>
+                2) Finalize o pedido<br/>
+                3) Após aprovação, acesse os links na Área do Membro
+              </div>
+            </div>
+
+            <div style="margin-top:14px;display:grid;gap:10px">
+              <div class="card" style="box-shadow:none">
+                <div class="cardInner" style="padding:14px">
+                  <b style="font-size:13px">Entrega instantânea?</b>
+                  <div class="sub" style="margin-top:6px;font-size:12px;max-width:none">
+                    A aprovação pode ser rápida, mas é feita para manter o clube limpo e seguro.
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="box-shadow:none">
+                <div class="cardInner" style="padding:14px">
+                  <b style="font-size:13px">Atualizações</b>
+                  <div class="sub" style="margin-top:6px;font-size:12px;max-width:none">
+                    As listas podem receber novos fornecedores e ajustes de curadoria.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
-      </div></div>
-    </div>
-  </section>
+      </div>
 
-  <div class="footer">© 2026 Conexão Street • GitHub Pages ready</div>
-</main>
+      <div class="footer">© 2026 Conexão Street</div>
+    </section>
+  </main>
 
-<div class="toast" id="toast"></div>
-<script src="./config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./js/ui.js"></script>
-<script src="./js/index.js"></script>
-</body></html>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="./config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./js/ui.js"></script>
+  <script src="./js/index.js"></script>
+  <script src="./js/ux.js"></script>
+</body>
+</html>

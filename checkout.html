@@ -1,72 +1,141 @@
-<!DOCTYPE html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0A0A0A" />
+  <title>Checkout • Conexão Street</title>
 
-<html lang="pt-br"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width,initial-scale=1" name="viewport"/>
-<meta content="#7A2BFF" name="theme-color"/>
-<link href="./img/favicon.svg" rel="icon" type="image/svg+xml"/>
-<link href="./manifest.webmanifest" rel="manifest"/>
-<meta content="#07070A" name="theme-color"/>
-<link href="./styles.css" rel="stylesheet"/>
-<title>Checkout • Conexão Street</title>
-</head><body>
-<div class="bg"></div><div class="noise"></div>
-<div aria-hidden="true" class="loader" id="loader"><div style="display:flex;align-items:center;gap:12px"><div class="spin"></div><div><b>Carregando</b><br/><span class="sub" style="max-width:none;font-size:12px">Pagamento</span></div></div></div>
-<div class="top">
-<div class="wrap">
-<div class="bar">
-<a aria-label="Home" class="brand" href="./index.html">
-<div class="logoBox"><img alt="Logo" src="./img/logo.svg"/></div>
-<div>
-<b>Conexão Street</b><br/>
-<small>Pagamento</small>
-</div>
-</a>
-<div class="pills">
-<a class="pill muted" href="./products.html">Fornecedores</a>
-<a class="pill muted" href="./produtos.html">Produtos</a>
-<a class="pill muted" href="./admin.html" id="adminPill" style="display:none">Admin</a>
-<a class="pill muted" href="./member.html">Área do membro</a>
-<a class="pill" href="https://wa.me/5511919730067" rel="noopener" target="_blank">Suporte ↗</a>
-</div>
-</div>
-</div>
-</div>
-<main class="wrap">
-<div class="footer">© 2026 Conexão Street</div>
-</main>
-<div class="toast" id="toast"></div>
-<script src="./config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./js/ui.js"></script>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
 
-<script>
-  // Guard: login obrigatório pra criar pedido (evita erro de RLS e melhora UX)
-  (function(){
-    function $(id){ return document.getElementById(id); }
-    document.addEventListener("DOMContentLoaded", async function(){
-      var btn = $("goPay");
-      if(btn) btn.disabled = true;
-
+  <!-- Guard (mantém comportamento antigo) -->
+  <script>
+    (function(){
       try{
-        // CS vem de ./js/ui.js
-        var u = await (window.CS && CS.user ? CS.user().catch(function(){return null;}) : Promise.resolve(null));
-        if(!u || !u.id){
-          try{ localStorage.setItem("cs_after_login", window.location.href); }catch(e){}
-          if(window.CS && CS.toast) CS.toast("Você precisa entrar na sua conta para comprar.");
-          // dá um tempinho pra pessoa ler
-          setTimeout(function(){
-            var url = new URL("member.html", window.location.href);
-            window.location.href = url.toString();
-          }, 650);
-          return;
+        const u = new URL(window.location.href);
+        const id = u.searchParams.get("id");
+        if(!id){
+          const last = localStorage.getItem("cs_last_product_id");
+          if(last){ u.searchParams.set("id", last); window.location.replace(u.toString()); return; }
+        }else{
+          localStorage.setItem("cs_last_product_id", id);
         }
-      }catch(e){
-        // se der erro, deixa seguir (não trava a página)
-      }
-      if(btn) btn.disabled = false;
-    });
-  })();
-</script>
-<script src="./js/checkout.js"></script>
-</body></html>
+      }catch{}
+    })();
+  </script>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="noise"></div>
+
+  <div class="loader" id="loader" aria-hidden="true">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="spin"></div>
+      <div>
+        <b>Carregando</b><br/>
+        <span class="sub" style="max-width:none;font-size:12px">Checkout</span>
+      </div>
+    </div>
+  </div>
+
+  <header class="top" role="banner">
+    <div class="wrap">
+      <div class="bar">
+        <a class="brand" href="./index.html" aria-label="Home">
+          <div class="logoBox">
+            <img src="./img/logo.svg" alt="Logo"
+                 onerror="this.onerror=null; this.src='./img/logo.png';" />
+          </div>
+          <div>
+            <b>Conexão Street</b><br/>
+            <small>Checkout</small>
+          </div>
+        </a>
+
+        <nav class="pills" aria-label="Navegação">
+          <a class="pill muted" href="./products.html">Planos</a>
+          <a class="pill muted" href="./member.html">Área do membro</a>
+          <a class="pill" href="https://wa.me/5511919730067" target="_blank" rel="noopener">Suporte ↗</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" role="main">
+    <section class="section">
+      <div class="grid2">
+        <!-- Produto -->
+        <div class="card">
+          <div class="cardInner">
+            <div class="kicker"><span class="dot"></span> Resumo do pedido</div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start;margin-top:14px">
+              <img id="pimg" class="pimg" alt="" style="width:120px;height:120px;border-radius:20px;border:1px solid rgba(245,245,245,.10)" src="./img/placeholder.svg" />
+              <div style="flex:1">
+                <div id="name" style="font-weight:800;letter-spacing:-.2px;font-size:18px;line-height:1.1">—</div>
+                <div id="desc" class="sub" style="margin-top:8px;max-width:none">—</div>
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+                  <span class="chip ok" id="price">—</span>
+                  <span class="chip" id="payChip">Pagamento: —</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <b style="font-size:13px">Regras do acesso</b>
+              <div class="sub" style="margin-top:6px;max-width:none">
+                • Acesso liberado após aprovação<br/>
+                • 1 dispositivo por pessoa<br/>
+                • Conteúdo autoral e confidencial
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dados -->
+        <div class="card">
+          <div class="cardInner">
+            <div class="kicker"><span class="dot"></span> Seus dados</div>
+            <div class="sub" style="margin-top:10px;max-width:none">
+              Use um email válido. Ele pode ser usado para confirmar e liberar o acesso.
+            </div>
+
+            <div class="field" style="margin-top:14px">
+              <input class="pill" id="buyerName" autocomplete="name" placeholder="Seu nome" />
+              <input class="pill" id="buyerEmail" autocomplete="email" inputmode="email" placeholder="Seu email" />
+              <input class="pill" id="buyerPhone" autocomplete="tel" inputmode="tel" placeholder="Seu WhatsApp (opcional)" />
+            </div>
+
+            <div style="display:grid;gap:10px;margin-top:14px">
+              <button class="btn" id="goPay" type="button">Ir para pagamento</button>
+              <a class="btn2" href="./products.html">Voltar aos planos</a>
+            </div>
+
+            <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+              <span class="chip">Checkout seguro</span>
+              <span class="chip">Sem spam</span>
+              <span class="chip">Suporte rápido</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">© 2026 Conexão Street</div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="./config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./js/ui.js"></script>
+  <script src="./js/checkout.js"></script>
+  <script src="./js/ux.js"></script>
+</body>
+</html>
